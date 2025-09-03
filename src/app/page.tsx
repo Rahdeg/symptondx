@@ -1,103 +1,218 @@
-import Image from "next/image";
+'use client';
+
+import React from 'react';
+import { useAuth } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
+import {
+  Brain,
+  Stethoscope,
+  Shield,
+  Zap,
+  Users,
+  TrendingUp,
+  ArrowRight,
+  Star,
+  Clock
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { FeatureCardComponent, StatCardComponent } from '@/components/ui/enhanced-cards';
+import { Header } from '@/components/ui/header';
+import { Footer } from '@/components/ui/footer';
+import { PrimaryAuthButton } from '@/modules/auth/ui/auth-button';
+
+const heroContent = {
+  title: "AI-Powered Medical Diagnosis",
+  subtitle: "Get accurate disease diagnosis from symptoms using advanced machine learning",
+  description: "SymptomDx combines cutting-edge AI technology with medical expertise to provide fast, accurate, and reliable symptom analysis and disease diagnosis.",
+  stats: [
+    { title: "Accuracy Rate", value: "94%", icon: TrendingUp, description: "AI diagnostic accuracy" },
+    { title: "Diagnoses", value: "10K+", icon: Stethoscope, description: "Completed analyses" },
+    { title: "Users", value: "2.5K+", icon: Users, description: "Active users" },
+    { title: "Response Time", value: "< 30s", icon: Clock, description: "Average analysis time" }
+  ]
+};
+
+const featuresContent = [
+  {
+    title: "AI-Powered Analysis",
+    description: "Advanced machine learning algorithms analyze your symptoms and provide accurate diagnostic suggestions with confidence scores.",
+    icon: Brain,
+    badge: "AI"
+  },
+  {
+    title: "Medical Professional Review",
+    description: "Licensed doctors review AI analyses to ensure accuracy and provide additional medical insights when needed.",
+    icon: Stethoscope,
+    badge: "Verified"
+  },
+  {
+    title: "Secure & Private",
+    description: "Your health data is encrypted and protected with enterprise-grade security. We never share your information.",
+    icon: Shield,
+    badge: "HIPAA"
+  },
+  {
+    title: "Instant Results",
+    description: "Get diagnostic results in under 30 seconds. Our optimized AI models provide fast and reliable analysis.",
+    icon: Zap,
+    badge: "Fast"
+  }
+];
+
+const testimonialsContent = [
+  {
+    name: "Dr. Sarah Chen",
+    role: "Emergency Medicine Physician",
+    content: "SymptomDx has been incredibly helpful in my practice. The AI accuracy is impressive and helps me make faster decisions.",
+    rating: 5
+  },
+  {
+    name: "Michael Rodriguez",
+    role: "Patient",
+    content: "I was able to get a preliminary diagnosis at 2 AM when no doctors were available. It gave me peace of mind and guidance.",
+    rating: 5
+  },
+  {
+    name: "Dr. James Wilson",
+    role: "Family Medicine",
+    content: "The diagnostic suggestions are well-reasoned and help me consider conditions I might have overlooked.",
+    rating: 5
+  }
+];
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const { isSignedIn } = useAuth();
+  const router = useRouter();
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const navigateToSignUp = () => router.push('/sign-up');
+  const navigateToSignIn = () => router.push('/sign-in');
+  const navigateToDashboard = () => router.push('/dashboard');
+
+  return (
+    <div className="min-h-screen">
+      <Header variant="transparent" />
+
+      {/* Hero Section */}
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-secondary/20" />
+        <div className="relative container mx-auto px-4 py-20">
+          <div className="max-w-4xl mx-auto text-center space-y-8">
+            <div className="space-y-4">
+              <h1 className="text-5xl md:text-7xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+                {heroContent.title}
+              </h1>
+              <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
+                {heroContent.subtitle}
+              </p>
+              <p className="text-base md:text-lg text-muted-foreground/80 max-w-3xl mx-auto leading-relaxed">
+                {heroContent.description}
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              {isSignedIn ? (
+                <Button
+                  size="lg"
+                  onClick={navigateToDashboard}
+                  className="px-8 py-6 text-lg"
+                >
+                  Go to Dashboard
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    size="lg"
+                    onClick={navigateToSignUp}
+                    className="px-8 py-6 text-lg"
+                  >
+                    Start Free Analysis
+                    <ArrowRight className="ml-2 h-5 w-5" />
+                  </Button>
+                  <PrimaryAuthButton className="px-8 py-6 text-lg" />
+                </>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-16">
+              {heroContent.stats.map((stat, index) => (
+                <StatCardComponent
+                  key={index}
+                  title={stat.title}
+                  value={stat.value}
+                  icon={stat.icon}
+                  description={stat.description}
+                  className="border-0 bg-background/60 backdrop-blur-sm"
+                />
+              ))}
+            </div>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+      </section>
+
+      {/* Features Section */}
+      <section id="features" className="py-20 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <div className="max-w-3xl mx-auto text-center space-y-4 mb-16">
+            <h2 className="text-3xl md:text-5xl font-bold">
+              Why Choose SymptomDx?
+            </h2>
+            <p className="text-lg text-muted-foreground">
+              Experience the future of medical diagnosis with our advanced AI technology
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {featuresContent.map((feature, index) => (
+              <FeatureCardComponent
+                key={index}
+                title={feature.title}
+                description={feature.description}
+                icon={feature.icon}
+                badge={feature.badge}
+              />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials Section */}
+      <section id="about" className="py-20">
+        <div className="container mx-auto px-4">
+          <div className="max-w-3xl mx-auto text-center space-y-4 mb-16">
+            <h2 className="text-3xl md:text-5xl font-bold">
+              Trusted by Healthcare Professionals
+            </h2>
+            <p className="text-lg text-muted-foreground">
+              See what doctors and patients are saying about SymptomDx
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {testimonialsContent.map((testimonial, index) => (
+              <div
+                key={index}
+                className="p-6 rounded-lg border bg-card text-card-foreground shadow-sm space-y-4"
+              >
+                <div className="flex items-center space-x-1">
+                  {[...Array(testimonial.rating)].map((_, i) => (
+                    <Star key={i} className="h-4 w-4 fill-primary text-primary" />
+                  ))}
+                </div>
+                <p className="text-muted-foreground italic">
+                  &ldquo;{testimonial.content}&rdquo;
+                </p>
+                <div>
+                  <p className="font-semibold">{testimonial.name}</p>
+                  <p className="text-sm text-muted-foreground">{testimonial.role}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <Footer />
     </div>
   );
 }
