@@ -3,7 +3,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { Brain, Menu, X } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
+import Image from 'next/image';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { HeaderAuthButton } from '@/modules/auth/ui/auth-button';
@@ -16,8 +17,15 @@ const navigationItems = [
 ];
 
 const logoConfig = {
-    text: 'SymptomDx',
-    icon: <Brain className="h-8 w-8 text-primary" />
+    icon: (
+        <Image
+            src="/logo.png"
+            alt="SymptomDx Logo"
+            width={120}
+            height={32}
+            className="h-8 w-auto logo-hover"
+        />
+    )
 };
 
 const scrollToSection = (href: string): void => {
@@ -62,16 +70,13 @@ export const Header: React.FC<HeaderProps> = ({
 
     // Render logo
     const renderLogo = () => (
-        <Link href="/" className="flex items-center space-x-2 group">
+        <Link href="/" className="flex items-center group">
             <motion.div
                 whileHover={{ rotate: 5 }}
                 transition={{ type: "spring", stiffness: 300 }}
             >
                 {logoConfig.icon}
             </motion.div>
-            <span className="text-xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-                {logoConfig.text}
-            </span>
         </Link>
     );
 

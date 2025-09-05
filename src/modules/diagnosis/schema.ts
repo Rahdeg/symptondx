@@ -8,6 +8,7 @@ export const diagnosisRequestSchema = z.object({
   age: z.number().min(1).max(120),
   gender: z.enum(["male", "female", "other"]),
   predictionMethod: z.enum(["ai", "ml"]).default("ml"),
+  preferredDoctorId: z.string().uuid().optional(), // New field for doctor selection
 });
 
 export const diagnosisResultSchema = z.object({
@@ -21,5 +22,11 @@ export const diagnosisResultSchema = z.object({
   ),
   urgencyLevel: z.enum(["low", "medium", "high", "emergency"]),
   recommendations: z.array(z.string()),
+  sessionId: z.string().uuid(),
+});
+
+// New schema for doctor selection
+export const doctorSelectionSchema = z.object({
+  doctorId: z.string().uuid(),
   sessionId: z.string().uuid(),
 });

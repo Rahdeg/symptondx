@@ -6,6 +6,7 @@ import {
   users,
   mlPredictions,
   diseases,
+  doctors,
 } from "@/db/schema";
 import {
   protectedProcedure,
@@ -45,16 +46,19 @@ export const diagnosisRouter = createTRPCRouter({
         .insert(diagnosisSessions)
         .values({
           patientId: patientData.patientId,
+          doctorId: input.preferredDoctorId || null, // Assign selected doctor if provided
           chiefComplaint: input.symptoms.join(", "),
           additionalInfo: `Age: ${input.age}, Gender: ${
             input.gender
           }, Duration: ${input.duration}, Severity: ${input.severity}${
             input.additionalNotes ? `, Notes: ${input.additionalNotes}` : ""
           }`,
-          status: "in_progress",
+          status: input.preferredDoctorId ? "pending" : "in_progress", // Pending if doctor assigned
           urgencyLevel: input.severity === "severe" ? "high" : "medium",
           isEmergency: input.severity === "severe",
-          requiresDoctorReview: input.severity === "severe",
+          requiresDoctorReview: input.preferredDoctorId
+            ? true
+            : input.severity === "severe",
         })
         .returning();
 
@@ -191,6 +195,30 @@ export const diagnosisRouter = createTRPCRouter({
         } catch (notificationError) {
           console.error("Failed to create notification:", notificationError);
           // Don't fail the entire request if notification creation fails
+        }
+
+        // If a doctor was selected, create notification
+        if (input.preferredDoctorId) {
+          // Get doctor's user ID for notification
+          const [doctorUser] = await db
+            .select({ userId: users.id })
+            .from(doctors)
+            .innerJoin(users, eq(doctors.userId, users.id))
+            .where(eq(doctors.id, input.preferredDoctorId))
+            .limit(1);
+
+          if (doctorUser) {
+            await db.insert(notifications).values({
+              userId: doctorUser.userId,
+              type: "doctor_review_needed",
+              title: "New Case Assignment",
+              message: "A patient has selected you for their diagnosis review",
+              data: {
+                sessionId: session.id,
+                patientId: patientData.patientId,
+              },
+            });
+          }
         }
       } catch (error) {
         console.error("AI prediction failed:", error);

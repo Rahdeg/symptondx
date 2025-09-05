@@ -1,6 +1,12 @@
 import { z } from "zod";
 import { db } from "@/db";
-import { patients, users, diagnosisSessions } from "@/db/schema";
+import {
+  patients,
+  users,
+  diagnosisSessions,
+  doctors,
+  doctorReviews,
+} from "@/db/schema";
 import { protectedProcedure, createTRPCRouter } from "@/trpc/init";
 import { patientOnboardingSchema, symptomInputSchema } from "../schema";
 import { eq, desc, and, count } from "drizzle-orm";
@@ -157,6 +163,8 @@ export const patientsRouter = createTRPCRouter({
         medicalHistory: patients.medicalHistory,
         currentMedications: patients.currentMedications,
         allergies: patients.allergies,
+        emergencyContact: patients.emergencyContact,
+        emergencyPhone: patients.emergencyPhone,
         createdAt: patients.createdAt,
       })
       .from(users)
@@ -341,5 +349,171 @@ export const patientsRouter = createTRPCRouter({
       }
 
       return null;
+    }),
+
+  // Get pending doctor reviews for patient
+  getPendingDoctorReviews: protectedProcedure.query(async ({ ctx }) => {
+    const [patientData] = await db
+      .select({ patientId: patients.id })
+      .from(users)
+      .innerJoin(patients, eq(users.id, patients.userId))
+      .where(eq(users.clerkId, ctx.clerkUserId!))
+      .limit(1);
+
+    if (!patientData) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "Patient not found",
+      });
+    }
+
+    const pendingReviews = await db
+      .select({
+        id: diagnosisSessions.id,
+        chiefComplaint: diagnosisSessions.chiefComplaint,
+        additionalInfo: diagnosisSessions.additionalInfo,
+        status: diagnosisSessions.status,
+        urgencyLevel: diagnosisSessions.urgencyLevel,
+        isEmergency: diagnosisSessions.isEmergency,
+        createdAt: diagnosisSessions.createdAt,
+        doctorName: users.name,
+        doctorSpecialization: doctors.specialization,
+      })
+      .from(diagnosisSessions)
+      .leftJoin(doctors, eq(diagnosisSessions.doctorId, doctors.id))
+      .leftJoin(users, eq(doctors.userId, users.id))
+      .where(
+        and(
+          eq(diagnosisSessions.patientId, patientData.patientId),
+          eq(diagnosisSessions.requiresDoctorReview, true),
+          eq(diagnosisSessions.status, "pending")
+        )
+      )
+      .orderBy(desc(diagnosisSessions.createdAt));
+
+    return pendingReviews;
+  }),
+
+  // Get doctor review history for patient
+  getDoctorReviewHistory: protectedProcedure
+    .input(
+      z.object({
+        page: z.number().default(1),
+        limit: z.number().default(10),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const [patientData] = await db
+        .select({ patientId: patients.id })
+        .from(users)
+        .innerJoin(patients, eq(users.id, patients.userId))
+        .where(eq(users.clerkId, ctx.clerkUserId!))
+        .limit(1);
+
+      if (!patientData) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Patient not found",
+        });
+      }
+
+      const offset = (input.page - 1) * input.limit;
+
+      const reviewHistory = await db
+        .select({
+          sessionId: diagnosisSessions.id,
+          chiefComplaint: diagnosisSessions.chiefComplaint,
+          finalDiagnosis: diagnosisSessions.finalDiagnosis,
+          doctorNotes: diagnosisSessions.doctorNotes,
+          confidence_score: diagnosisSessions.confidence_score,
+          status: diagnosisSessions.status,
+          completedAt: diagnosisSessions.completedAt,
+          doctorName: users.name,
+          doctorSpecialization: doctors.specialization,
+          doctorReview: {
+            finalDiagnosis: doctorReviews.finalDiagnosis,
+            confidence: doctorReviews.confidence,
+            notes: doctorReviews.notes,
+            agreesWithML: doctorReviews.agreesWithML,
+            recommendedActions: doctorReviews.recommendedActions,
+            createdAt: doctorReviews.createdAt,
+          },
+        })
+        .from(diagnosisSessions)
+        .leftJoin(doctors, eq(diagnosisSessions.doctorId, doctors.id))
+        .leftJoin(users, eq(doctors.userId, users.id))
+        .leftJoin(
+          doctorReviews,
+          eq(diagnosisSessions.id, doctorReviews.sessionId)
+        )
+        .where(
+          and(
+            eq(diagnosisSessions.patientId, patientData.patientId),
+            eq(diagnosisSessions.status, "reviewed")
+          )
+        )
+        .orderBy(desc(diagnosisSessions.completedAt))
+        .limit(input.limit)
+        .offset(offset);
+
+      return reviewHistory;
+    }),
+
+  // Get detailed case status for patient
+  getCaseStatus: protectedProcedure
+    .input(z.object({ sessionId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const [patientData] = await db
+        .select({ patientId: patients.id })
+        .from(users)
+        .innerJoin(patients, eq(users.id, patients.userId))
+        .where(eq(users.clerkId, ctx.clerkUserId!))
+        .limit(1);
+
+      if (!patientData) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Patient not found",
+        });
+      }
+
+      const caseDetails = await db
+        .select({
+          id: diagnosisSessions.id,
+          status: diagnosisSessions.status,
+          chiefComplaint: diagnosisSessions.chiefComplaint,
+          additionalInfo: diagnosisSessions.additionalInfo,
+          finalDiagnosis: diagnosisSessions.finalDiagnosis,
+          doctorNotes: diagnosisSessions.doctorNotes,
+          confidence_score: diagnosisSessions.confidence_score,
+          urgencyLevel: diagnosisSessions.urgencyLevel,
+          isEmergency: diagnosisSessions.isEmergency,
+          requiresDoctorReview: diagnosisSessions.requiresDoctorReview,
+          createdAt: diagnosisSessions.createdAt,
+          updatedAt: diagnosisSessions.updatedAt,
+          completedAt: diagnosisSessions.completedAt,
+          doctorName: users.name,
+          doctorSpecialization: doctors.specialization,
+          doctorEmail: users.email,
+        })
+        .from(diagnosisSessions)
+        .leftJoin(doctors, eq(diagnosisSessions.doctorId, doctors.id))
+        .leftJoin(users, eq(doctors.userId, users.id))
+        .where(
+          and(
+            eq(diagnosisSessions.id, input.sessionId),
+            eq(diagnosisSessions.patientId, patientData.patientId)
+          )
+        )
+        .limit(1);
+
+      if (!caseDetails.length) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Case not found",
+        });
+      }
+
+      return caseDetails[0];
     }),
 });

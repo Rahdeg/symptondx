@@ -16,7 +16,7 @@ export const AdminOnboarding: React.FC = () => {
             </CardHeader>
             <CardContent>
                 <p className="text-muted-foreground mb-4">
-                    Welcome to the SymptomDx administrator panel. You have full access to system management and monitoring.
+                    Welcome to the administrator panel. You have full access to system management and monitoring.
                 </p>
                 <Button className="w-full">
                     Complete Setup

@@ -145,7 +145,7 @@ export function RoleSelection() {
                         className="text-center mb-12"
                     >
                         <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent mb-4">
-                            Welcome to SymptomDx
+                            Welcome to Our Platform
                         </h1>
                         <p className="text-xl md:text-2xl text-muted-foreground mb-2">
                             AI-Powered Medical Diagnosis Platform

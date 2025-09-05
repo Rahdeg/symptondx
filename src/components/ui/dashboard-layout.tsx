@@ -5,27 +5,22 @@ import { useUser } from '@clerk/nextjs';
 import { useRouter, usePathname } from 'next/navigation';
 
 import {
-    Brain,
     Menu,
     X,
     Home,
     User,
     Activity,
     Settings,
-    Bell,
     Stethoscope,
     Shield,
     Users,
     BarChart3,
     Heart,
-    Calendar,
     FileText,
-    AlertTriangle,
 } from 'lucide-react';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AuthButton } from '@/modules/auth/ui/auth-button';
 import { NotificationBell } from '@/components/ui/notification-bell';
@@ -46,6 +41,37 @@ interface DashboardLayoutProps {
     title: string;
     description?: string;
 }
+
+// Component for dynamic doctor navigation with real data
+const DoctorNavigation = () => {
+    return [
+        {
+            label: 'Dashboard',
+            href: '/dashboard/doctor',
+            icon: <Home className="h-4 w-4" />,
+        },
+        {
+            label: 'Patient Reviews',
+            href: '/doctor/reviews',
+            icon: <Stethoscope className="h-4 w-4" />,
+        },
+        {
+            label: 'AI Insights',
+            href: '/doctor/ai-insights',
+            icon: <Image src="/logo1.png" alt="AI" width={16} height={16} className="h-4 w-4" />,
+        },
+        {
+            label: 'Patient Management',
+            href: '/doctor/patients',
+            icon: <Users className="h-4 w-4" />,
+        },
+        {
+            label: 'Analytics',
+            href: '/doctor/analytics',
+            icon: <BarChart3 className="h-4 w-4" />,
+        },
+    ];
+};
 
 const getRoleNavigation = (role: UserRole): NavigationItem[] => {
     const commonItems: NavigationItem[] = [
@@ -71,7 +97,7 @@ const getRoleNavigation = (role: UserRole): NavigationItem[] => {
             {
                 label: 'Symptom Analysis',
                 href: '/diagnosis/new',
-                icon: <Brain className="h-4 w-4" />,
+                icon: <Image src="/logo1.png" alt="AI" width={16} height={16} className="h-4 w-4" />,
             },
             {
                 label: 'My Diagnoses',
@@ -83,40 +109,8 @@ const getRoleNavigation = (role: UserRole): NavigationItem[] => {
                 href: '/health-history',
                 icon: <Activity className="h-4 w-4" />,
             },
-            {
-                label: 'Appointments',
-                href: '/appointments',
-                icon: <Calendar className="h-4 w-4" />,
-            },
         ],
-        doctor: [
-            {
-                label: 'Dashboard',
-                href: '/dashboard/doctor',
-                icon: <Home className="h-4 w-4" />,
-            },
-            {
-                label: 'Patient Reviews',
-                href: '/doctor/reviews',
-                icon: <Stethoscope className="h-4 w-4" />,
-                badge: '3',
-            },
-            {
-                label: 'AI Insights',
-                href: '/doctor/ai-insights',
-                icon: <Brain className="h-4 w-4" />,
-            },
-            {
-                label: 'Patient Management',
-                href: '/doctor/patients',
-                icon: <Users className="h-4 w-4" />,
-            },
-            {
-                label: 'Analytics',
-                href: '/doctor/analytics',
-                icon: <BarChart3 className="h-4 w-4" />,
-            },
-        ],
+        doctor: DoctorNavigation(),
         admin: [
             {
                 label: 'Dashboard',
@@ -131,7 +125,7 @@ const getRoleNavigation = (role: UserRole): NavigationItem[] => {
             {
                 label: 'AI Management',
                 href: '/admin/ai-models',
-                icon: <Brain className="h-4 w-4" />,
+                icon: <Image src="/logo1.png" alt="AI" width={16} height={16} className="h-4 w-4" />,
             },
             {
                 label: 'User Management',
@@ -226,9 +220,14 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 <div className="flex flex-col h-full">
                     {/* Logo */}
                     <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
-                        <div className="flex items-center space-x-2">
-                            <Brain className="h-8 w-8 text-primary" />
-                            <span className="text-xl font-bold text-gray-900">SymptomDx</span>
+                        <div className="flex items-center">
+                            <Image
+                                src="/logo.png"
+                                alt="SymptomDx Logo"
+                                width={120}
+                                height={32}
+                                className="h-8 w-auto logo-hover"
+                            />
                         </div>
                         <Button
                             variant="ghost"

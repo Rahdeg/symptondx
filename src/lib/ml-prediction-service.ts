@@ -412,9 +412,7 @@ function generateRecommendations(
       "Consider immediate consultation with a healthcare provider"
     );
   } else if (confidence > 0.5) {
-    recommendations.push(
-      "Schedule an appointment with your doctor for evaluation"
-    );
+    recommendations.push("Consult with your doctor for evaluation");
   } else {
     recommendations.push(
       "Monitor symptoms and consult a healthcare provider if they worsen"

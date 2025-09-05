@@ -21,10 +21,12 @@ import {
     Clock,
     User,
     ArrowRight,
-    CheckCircle
+    CheckCircle,
+    Stethoscope
 } from 'lucide-react';
 import { api } from '@/trpc/client';
 import { toast } from 'sonner';
+import { DoctorSelection } from '@/components/doctor-selection';
 
 // Form validation schema
 const symptomAnalysisSchema = z.object({
@@ -61,6 +63,8 @@ export default function NewDiagnosisPage() {
     const [customSymptom, setCustomSymptom] = useState('');
     const [currentStep, setCurrentStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [selectedDoctorId, setSelectedDoctorId] = useState<string>('');
+    const [showDoctorSelection, setShowDoctorSelection] = useState(false);
 
     const {
         register,
@@ -125,11 +129,12 @@ export default function NewDiagnosisPage() {
             severity: data.severity,
             additionalNotes: data.additionalNotes,
             predictionMethod: data.predictionMethod,
+            preferredDoctorId: selectedDoctorId || undefined, // Include selected doctor
         });
     };
 
     const nextStep = () => {
-        if (currentStep < 3) {
+        if (currentStep < 4) {
             setCurrentStep(currentStep + 1);
         }
     };
@@ -140,7 +145,7 @@ export default function NewDiagnosisPage() {
         }
     };
 
-    const progress = (currentStep / 3) * 100;
+    const progress = (currentStep / 4) * 100;
 
     return (
         <DashboardLayout
@@ -154,12 +159,13 @@ export default function NewDiagnosisPage() {
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
                                 <h2 className="text-lg font-semibold">Analysis Progress</h2>
-                                <span className="text-sm text-muted-foreground">Step {currentStep} of 3</span>
+                                <span className="text-sm text-muted-foreground">Step {currentStep} of 4</span>
                             </div>
                             <Progress value={progress} className="h-2" />
                             <div className="flex justify-between text-sm text-muted-foreground">
                                 <span>Symptoms</span>
                                 <span>Details</span>
+                                <span>Doctor</span>
                                 <span>Review</span>
                             </div>
                         </div>
@@ -396,8 +402,59 @@ export default function NewDiagnosisPage() {
                         </div>
                     )}
 
-                    {/* Step 3: Review and Submit */}
+                    {/* Step 3: Doctor Selection (New) */}
                     {currentStep === 3 && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Stethoscope className="h-5 w-5 text-blue-500" />
+                                    Doctor Selection (Optional)
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="space-y-4">
+                                    <div className="flex items-center space-x-2">
+                                        <input
+                                            type="checkbox"
+                                            id="includeDoctor"
+                                            checked={showDoctorSelection}
+                                            onChange={(e) => setShowDoctorSelection(e.target.checked)}
+                                            className="rounded"
+                                            aria-label="Include doctor review"
+                                        />
+                                        <Label htmlFor="includeDoctor">
+                                            I would like a doctor to review my diagnosis
+                                        </Label>
+                                    </div>
+
+                                    {showDoctorSelection && (
+                                        <DoctorSelection
+                                            onDoctorSelect={setSelectedDoctorId}
+                                            selectedDoctorId={selectedDoctorId}
+                                        />
+                                    )}
+
+                                    {!showDoctorSelection && (
+                                        <div className="bg-blue-50 p-4 rounded-lg">
+                                            <div className="flex items-start gap-3">
+                                                <Brain className="h-5 w-5 text-blue-600 mt-0.5" />
+                                                <div>
+                                                    <h4 className="font-semibold text-blue-900">AI Analysis Only</h4>
+                                                    <p className="text-sm text-blue-800 mt-1">
+                                                        Your symptoms will be analyzed by our AI system.
+                                                        You can still get a doctor review later if needed.
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {/* Step 4: Review and Submit (Updated) */}
+                    {currentStep === 4 && (
                         <Card>
                             <CardHeader>
                                 <CardTitle className="flex items-center gap-2">
@@ -441,6 +498,15 @@ export default function NewDiagnosisPage() {
                                                 <p className="text-sm text-muted-foreground">{watch('additionalNotes')}</p>
                                             </div>
                                         )}
+
+                                        {showDoctorSelection && selectedDoctorId && (
+                                            <div>
+                                                <h3 className="font-semibold mb-2">Selected Doctor</h3>
+                                                <p className="text-sm text-muted-foreground">
+                                                    A doctor will review your diagnosis after AI analysis
+                                                </p>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
@@ -471,13 +537,14 @@ export default function NewDiagnosisPage() {
                             Previous
                         </Button>
 
-                        {currentStep < 3 ? (
+                        {currentStep < 4 ? (
                             <Button
                                 type="button"
                                 onClick={nextStep}
                                 disabled={
                                     (currentStep === 1 && selectedSymptoms.length === 0) ||
-                                    (currentStep === 2 && (!watch('age') || !watch('gender') || !watch('duration') || !watch('severity')))
+                                    (currentStep === 2 && (!watch('age') || !watch('gender') || !watch('duration') || !watch('severity'))) ||
+                                    (currentStep === 3 && showDoctorSelection && !selectedDoctorId)
                                 }
                             >
                                 Next
@@ -497,7 +564,7 @@ export default function NewDiagnosisPage() {
                                 ) : (
                                     <>
                                         <Brain className="mr-2 h-4 w-4" />
-                                        {watch('predictionMethod') === 'ai' ? 'Start AI Analysis' : 'Start ML Analysis'}
+                                        {showDoctorSelection ? 'Start Analysis with Doctor Review' : 'Start AI Analysis'}
                                     </>
                                 )}
                             </Button>

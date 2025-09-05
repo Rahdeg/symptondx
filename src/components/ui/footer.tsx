@@ -2,14 +2,14 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Brain, Github, Twitter, Mail, Heart } from 'lucide-react';
+import { Github, Twitter, Mail, Heart } from 'lucide-react';
+import Image from 'next/image';
 
 const currentYear = new Date().getFullYear();
 
 const companyInfo = {
-    name: 'SymptomDx',
     description: 'AI-powered medical diagnosis platform helping people get accurate symptom analysis and healthcare guidance.',
-    icon: <Brain className="h-6 w-6 text-primary" />
+    icon: <Image src="/logo.png" alt="SymptomDx Logo" width={120} height={32} className="h-8 w-auto logo-hover" />
 };
 
 const footerLinks = {
@@ -80,9 +80,8 @@ export const Footer: React.FC<FooterProps> = ({
     // Render company section
     const renderCompanySection = () => (
         <div className="col-span-1 lg:col-span-2">
-            <div className="flex items-center space-x-2 mb-4">
+            <div className="flex items-center mb-4">
                 {companyInfo.icon}
-                <span className="text-xl font-bold">{companyInfo.name}</span>
             </div>
             <p className="text-muted-foreground mb-6 max-w-md leading-relaxed">
                 {companyInfo.description}
@@ -135,7 +134,7 @@ export const Footer: React.FC<FooterProps> = ({
         <div className="pt-8 border-t border-border">
             <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
                 <p className="text-sm text-muted-foreground">
-                    © {currentYear} {companyInfo.name}. All rights reserved.
+                    © {currentYear} SymptomDx. All rights reserved.
                 </p>
                 <div className="flex items-center space-x-1 text-sm text-muted-foreground">
                     <span>Made with</span>

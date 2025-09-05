@@ -4,7 +4,6 @@ import React from 'react';
 import { useAuth } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import {
-  Brain,
   Stethoscope,
   Shield,
   Zap,
@@ -14,6 +13,7 @@ import {
   Star,
   Clock
 } from 'lucide-react';
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { FeatureCardComponent, StatCardComponent } from '@/components/ui/enhanced-cards';
 import { Header } from '@/components/ui/header';
@@ -23,7 +23,7 @@ import { PrimaryAuthButton } from '@/modules/auth/ui/auth-button';
 const heroContent = {
   title: "AI-Powered Medical Diagnosis",
   subtitle: "Get accurate disease diagnosis from symptoms using advanced machine learning",
-  description: "SymptomDx combines cutting-edge AI technology with medical expertise to provide fast, accurate, and reliable symptom analysis and disease diagnosis.",
+  description: "Our platform combines cutting-edge AI technology with medical expertise to provide fast, accurate, and reliable symptom analysis and disease diagnosis.",
   stats: [
     { title: "Accuracy Rate", value: "94%", icon: TrendingUp, description: "AI diagnostic accuracy" },
     { title: "Diagnoses", value: "10K+", icon: Stethoscope, description: "Completed analyses" },
@@ -36,7 +36,7 @@ const featuresContent = [
   {
     title: "AI-Powered Analysis",
     description: "Advanced machine learning algorithms analyze your symptoms and provide accurate diagnostic suggestions with confidence scores.",
-    icon: Brain,
+    icon: () => <Image src="/logo1.png" alt="AI" width={24} height={24} className="h-6 w-6" />,
     badge: "AI"
   },
   {
@@ -63,7 +63,7 @@ const testimonialsContent = [
   {
     name: "Dr. Sarah Chen",
     role: "Emergency Medicine Physician",
-    content: "SymptomDx has been incredibly helpful in my practice. The AI accuracy is impressive and helps me make faster decisions.",
+    content: "This platform has been incredibly helpful in my practice. The AI accuracy is impressive and helps me make faster decisions.",
     rating: 5
   },
   {
@@ -95,10 +95,11 @@ export default function Home() {
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-secondary/20" />
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent" />
         <div className="relative container mx-auto px-4 py-20">
           <div className="max-w-4xl mx-auto text-center space-y-8">
             <div className="space-y-4">
-              <h1 className="text-5xl md:text-7xl font-bold bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
+              <h1 className="text-5xl md:text-7xl font-bold gradient-primary-text">
                 {heroContent.title}
               </h1>
               <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto">
@@ -114,7 +115,7 @@ export default function Home() {
                 <Button
                   size="lg"
                   onClick={navigateToDashboard}
-                  className="px-8 py-6 text-lg"
+                  className="px-8 py-6 text-lg gradient-primary shadow-primary-lg hover:shadow-primary transition-all duration-300"
                 >
                   Go to Dashboard
                   <ArrowRight className="ml-2 h-5 w-5" />
@@ -124,7 +125,7 @@ export default function Home() {
                   <Button
                     size="lg"
                     onClick={navigateToSignUp}
-                    className="px-8 py-6 text-lg"
+                    className="px-8 py-6 text-lg gradient-primary shadow-primary-lg hover:shadow-primary transition-all duration-300"
                   >
                     Start Free Analysis
                     <ArrowRight className="ml-2 h-5 w-5" />
@@ -155,7 +156,7 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto text-center space-y-4 mb-16">
             <h2 className="text-3xl md:text-5xl font-bold">
-              Why Choose SymptomDx?
+              Why Choose Our Platform?
             </h2>
             <p className="text-lg text-muted-foreground">
               Experience the future of medical diagnosis with our advanced AI technology
@@ -184,7 +185,7 @@ export default function Home() {
               Trusted by Healthcare Professionals
             </h2>
             <p className="text-lg text-muted-foreground">
-              See what doctors and patients are saying about SymptomDx
+              See what doctors and patients are saying about our platform
             </p>
           </div>
 
