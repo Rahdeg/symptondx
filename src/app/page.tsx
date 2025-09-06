@@ -13,7 +13,6 @@ import {
   Star,
   Clock
 } from 'lucide-react';
-import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { FeatureCardComponent, StatCardComponent } from '@/components/ui/enhanced-cards';
 import { Header } from '@/components/ui/header';
@@ -36,7 +35,7 @@ const featuresContent = [
   {
     title: "AI-Powered Analysis",
     description: "Advanced machine learning algorithms analyze your symptoms and provide accurate diagnostic suggestions with confidence scores.",
-    icon: () => <Image src="/logo1.png" alt="AI" width={24} height={24} className="h-6 w-6" />,
+    icon: Zap,
     badge: "AI"
   },
   {
@@ -85,7 +84,6 @@ export default function Home() {
   const router = useRouter();
 
   const navigateToSignUp = () => router.push('/sign-up');
-  const navigateToSignIn = () => router.push('/sign-in');
   const navigateToDashboard = () => router.push('/dashboard');
 
   return (

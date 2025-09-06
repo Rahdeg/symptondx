@@ -213,7 +213,7 @@ export default function NewDiagnosisPage() {
                                 {/* Common Symptoms */}
                                 <div className="space-y-2">
                                     <Label>Common Symptoms</Label>
-                                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                                         {commonSymptoms.map((symptom) => (
                                             <Button
                                                 key={symptom}
@@ -268,7 +268,7 @@ export default function NewDiagnosisPage() {
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent className="space-y-4">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                         <div className="space-y-2">
                                             <Label htmlFor="age">Age *</Label>
                                             <Input
@@ -327,7 +327,7 @@ export default function NewDiagnosisPage() {
 
                                     <div className="space-y-2">
                                         <Label>Severity Level *</Label>
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                                             {severityLevels.map((level) => (
                                                 <Button
                                                     key={level.value}
@@ -362,7 +362,7 @@ export default function NewDiagnosisPage() {
 
                                     <div className="space-y-2">
                                         <Label>Analysis Method</Label>
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             <Button
                                                 type="button"
                                                 variant={watch('predictionMethod') === 'ml' ? "default" : "outline"}
@@ -463,7 +463,7 @@ export default function NewDiagnosisPage() {
                                 </CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-6">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                     <div className="space-y-4">
                                         <div>
                                             <h3 className="font-semibold mb-2">Symptoms</h3>

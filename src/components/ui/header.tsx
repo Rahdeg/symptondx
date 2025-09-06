@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import Link from 'next/link';
+import { useRouter, usePathname } from 'next/navigation';
 import { Menu, X } from 'lucide-react';
 import Image from 'next/image';
 import { useState } from 'react';
@@ -10,10 +10,10 @@ import { Button } from '@/components/ui/button';
 import { HeaderAuthButton } from '@/modules/auth/ui/auth-button';
 
 const navigationItems = [
-    { label: 'Features', href: '#features' },
-    { label: 'How it Works', href: '#how-it-works' },
-    { label: 'About', href: '#about' },
-    { label: 'Contact', href: '#contact' },
+    { label: 'Features', href: '/features' },
+    { label: 'How it Works', href: '/how-it-works' },
+    { label: 'About', href: '/about' },
+    { label: 'Contact', href: '/contact' },
 ];
 
 const logoConfig = {
@@ -48,10 +48,24 @@ export const Header: React.FC<HeaderProps> = ({
     variant = 'default'
 }) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const router = useRouter();
+    const pathname = usePathname();
 
     const handleNavClick = (href: string) => {
-        scrollToSection(href);
+        if (href.startsWith('#')) {
+            scrollToSection(href);
+        } else {
+            router.push(href);
+        }
         setIsMobileMenuOpen(false);
+    };
+
+    // Check if a navigation item is active
+    const isActive = (href: string) => {
+        if (href === '/') {
+            return pathname === '/';
+        }
+        return pathname.startsWith(href);
     };
 
     // Get header styles based on variant
@@ -70,29 +84,39 @@ export const Header: React.FC<HeaderProps> = ({
 
     // Render logo
     const renderLogo = () => (
-        <Link href="/" className="flex items-center group">
+        <button
+            onClick={() => router.push('/')}
+            className="flex items-center group"
+        >
             <motion.div
                 whileHover={{ rotate: 5 }}
                 transition={{ type: "spring", stiffness: 300 }}
             >
                 {logoConfig.icon}
             </motion.div>
-        </Link>
+        </button>
     );
 
     // Render navigation items
     const renderNavItems = () => (
         <nav className="hidden md:flex items-center space-x-6">
-            {navigationItems.map((item) => (
-                <button
-                    key={item.href}
-                    onClick={() => handleNavClick(item.href)}
-                    className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors duration-200 relative group"
-                >
-                    {item.label}
-                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-primary transition-all duration-200 group-hover:w-full" />
-                </button>
-            ))}
+            {navigationItems.map((item) => {
+                const active = isActive(item.href);
+                return (
+                    <button
+                        key={item.href}
+                        onClick={() => handleNavClick(item.href)}
+                        className={`text-sm font-medium transition-colors duration-200 relative group ${active
+                            ? 'text-foreground'
+                            : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                    >
+                        {item.label}
+                        <span className={`absolute -bottom-1 left-0 h-0.5 bg-primary transition-all duration-200 ${active ? 'w-full' : 'w-0 group-hover:w-full'
+                            }`} />
+                    </button>
+                );
+            })}
         </nav>
     );
 
@@ -108,18 +132,21 @@ export const Header: React.FC<HeaderProps> = ({
             className="md:hidden overflow-hidden bg-background border-t border-border"
         >
             <div className="px-4 py-6 space-y-4">
-                {navigationItems.map((item) => (
-                    <button
-                        key={item.href}
-                        onClick={() => handleNavClick(item.href)}
-                        className="block w-full text-left text-base font-medium text-muted-foreground hover:text-foreground transition-colors duration-200 py-2"
-                    >
-                        {item.label}
-                    </button>
-                ))}
-                <div className="pt-4 border-t border-border">
-                    <HeaderAuthButton className="w-full justify-center" />
-                </div>
+                {navigationItems.map((item) => {
+                    const active = isActive(item.href);
+                    return (
+                        <button
+                            key={item.href}
+                            onClick={() => handleNavClick(item.href)}
+                            className={`block w-full text-left text-base font-medium transition-colors duration-200 py-2 ${active
+                                ? 'text-foreground'
+                                : 'text-muted-foreground hover:text-foreground'
+                                }`}
+                        >
+                            {item.label}
+                        </button>
+                    );
+                })}
             </div>
         </motion.div>
     );
@@ -150,13 +177,16 @@ export const Header: React.FC<HeaderProps> = ({
                     {/* Desktop Navigation */}
                     {renderNavItems()}
 
-                    {/* Desktop Auth Button */}
+                    {/* Auth Button - Desktop */}
                     <div className="hidden md:block">
                         <HeaderAuthButton />
                     </div>
 
-                    {/* Mobile Menu Toggle */}
-                    {renderMobileToggle()}
+                    {/* Mobile Auth Button - positioned before close button */}
+                    <div className="flex items-center space-x-2 md:hidden">
+                        <HeaderAuthButton />
+                        {renderMobileToggle()}
+                    </div>
                 </div>
             </div>
 

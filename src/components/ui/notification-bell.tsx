@@ -15,18 +15,12 @@ import { api } from '@/trpc/client';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 
-interface NotificationItem {
-    id: string;
-    type: string;
-    title: string;
-    message: string;
-    isRead: boolean;
-    createdAt: Date;
-    data?: Record<string, unknown>;
-}
 
 export function NotificationBell() {
     const [isOpen, setIsOpen] = useState(false);
+
+    // Get utils for invalidation
+    const utils = api.useUtils();
 
     // Fetch notifications
     const { data: notificationsData, refetch } = api.notifications.getMyNotifications.useQuery({
@@ -37,6 +31,8 @@ export function NotificationBell() {
     // Mark as read mutation
     const markAsReadMutation = api.notifications.markAsRead.useMutation({
         onSuccess: () => {
+            // Invalidate all notification queries to update dashboard data
+            utils.notifications.getMyNotifications.invalidate();
             refetch();
         },
         onError: () => {
@@ -48,6 +44,8 @@ export function NotificationBell() {
     const markAllAsReadMutation = api.notifications.markAllAsRead.useMutation({
         onSuccess: () => {
             toast.success('All notifications marked as read');
+            // Invalidate all notification queries to update dashboard data
+            utils.notifications.getMyNotifications.invalidate();
             refetch();
         },
         onError: () => {
@@ -67,6 +65,8 @@ export function NotificationBell() {
         switch (type) {
             case 'diagnosis_complete':
                 return '✅';
+            case 'doctor_review_complete':
+                return '✅';
             case 'high_risk_alert':
                 return '🚨';
             case 'doctor_review_needed':
@@ -85,6 +85,8 @@ export function NotificationBell() {
             case 'high_risk_alert':
                 return 'text-red-600';
             case 'diagnosis_complete':
+                return 'text-green-600';
+            case 'doctor_review_complete':
                 return 'text-green-600';
             case 'doctor_review_needed':
                 return 'text-blue-600';

@@ -3,19 +3,14 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DashboardLayout } from "@/components/ui/dashboard-layout";
 import {
-    Settings,
     Bell,
     Shield,
     Palette,
-    Globe,
-    Smartphone,
-    Mail,
     Lock,
     Trash2,
     Download,
@@ -219,7 +214,7 @@ export default function SettingsPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <Label htmlFor="theme">Theme</Label>
                                 <Select

@@ -131,14 +131,15 @@ export const patientsRouter = createTRPCRouter({
         )
       );
 
-    // Get pending doctor reviews
+    // Get pending doctor reviews - sessions that have a doctor assigned but haven't been reviewed yet
     const [reviewCount] = await db
       .select({ count: count() })
       .from(diagnosisSessions)
       .where(
         and(
           eq(diagnosisSessions.patientId, patientId),
-          eq(diagnosisSessions.status, "reviewed")
+          eq(diagnosisSessions.status, "pending"),
+          eq(diagnosisSessions.requiresDoctorReview, true)
         )
       );
 
@@ -419,7 +420,8 @@ export const patientsRouter = createTRPCRouter({
 
       const offset = (input.page - 1) * input.limit;
 
-      const reviewHistory = await db
+      // First get the diagnosis sessions
+      const sessions = await db
         .select({
           sessionId: diagnosisSessions.id,
           chiefComplaint: diagnosisSessions.chiefComplaint,
@@ -428,24 +430,9 @@ export const patientsRouter = createTRPCRouter({
           confidence_score: diagnosisSessions.confidence_score,
           status: diagnosisSessions.status,
           completedAt: diagnosisSessions.completedAt,
-          doctorName: users.name,
-          doctorSpecialization: doctors.specialization,
-          doctorReview: {
-            finalDiagnosis: doctorReviews.finalDiagnosis,
-            confidence: doctorReviews.confidence,
-            notes: doctorReviews.notes,
-            agreesWithML: doctorReviews.agreesWithML,
-            recommendedActions: doctorReviews.recommendedActions,
-            createdAt: doctorReviews.createdAt,
-          },
+          doctorId: diagnosisSessions.doctorId,
         })
         .from(diagnosisSessions)
-        .leftJoin(doctors, eq(diagnosisSessions.doctorId, doctors.id))
-        .leftJoin(users, eq(doctors.userId, users.id))
-        .leftJoin(
-          doctorReviews,
-          eq(diagnosisSessions.id, doctorReviews.sessionId)
-        )
         .where(
           and(
             eq(diagnosisSessions.patientId, patientData.patientId),
@@ -455,6 +442,56 @@ export const patientsRouter = createTRPCRouter({
         .orderBy(desc(diagnosisSessions.completedAt))
         .limit(input.limit)
         .offset(offset);
+
+      // Then get doctor info and reviews for each session
+      const reviewHistory = await Promise.all(
+        sessions.map(async (session) => {
+          let doctorInfo = null;
+          let doctorReview = null;
+
+          // Get doctor info if doctorId exists
+          if (session.doctorId) {
+            const [doctorData] = await db
+              .select({
+                doctorName: users.name,
+                doctorSpecialization: doctors.specialization,
+              })
+              .from(doctors)
+              .leftJoin(users, eq(doctors.userId, users.id))
+              .where(eq(doctors.id, session.doctorId))
+              .limit(1);
+            doctorInfo = doctorData;
+          }
+
+          // Get doctor review
+          const [reviewData] = await db
+            .select({
+              finalDiagnosis: doctorReviews.finalDiagnosis,
+              confidence: doctorReviews.confidence,
+              notes: doctorReviews.notes,
+              agreesWithML: doctorReviews.agreesWithML,
+              recommendedActions: doctorReviews.recommendedActions,
+              createdAt: doctorReviews.createdAt,
+            })
+            .from(doctorReviews)
+            .where(eq(doctorReviews.sessionId, session.sessionId))
+            .limit(1);
+          doctorReview = reviewData;
+
+          return {
+            sessionId: session.sessionId,
+            chiefComplaint: session.chiefComplaint,
+            finalDiagnosis: session.finalDiagnosis,
+            doctorNotes: session.doctorNotes,
+            confidence_score: session.confidence_score,
+            status: session.status,
+            completedAt: session.completedAt,
+            doctorName: doctorInfo?.doctorName || null,
+            doctorSpecialization: doctorInfo?.doctorSpecialization || null,
+            doctorReview: doctorReview || null,
+          };
+        })
+      );
 
       return reviewHistory;
     }),

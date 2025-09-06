@@ -10,16 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Search, Stethoscope, Star, Clock, MapPin, CheckCircle } from 'lucide-react';
 import { api } from '@/trpc/client';
 
-interface Doctor {
-    id: string;
-    name: string;
-    email: string;
-    specialization: string | null;
-    yearsOfExperience: number | null;
-    qualifications: string | null;
-    hospitalAffiliations: string | null;
-    licenseNumber: string;
-}
 
 interface DoctorSelectionProps {
     onDoctorSelect: (doctorId: string) => void;

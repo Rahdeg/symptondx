@@ -53,6 +53,7 @@ export const symptomCategoryEnum = pgEnum("symptom_category", [
 export const notificationTypeEnum = pgEnum("notification_type", [
   "diagnosis_complete",
   "doctor_review_needed",
+  "doctor_review_complete",
   "high_risk_alert",
   "follow_up_reminder",
   "system_update",

@@ -5,7 +5,6 @@ import { DashboardLayout } from '@/components/ui/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     BarChart3,
     TrendingUp,
@@ -14,23 +13,19 @@ import {
     Clock,
     Target,
     Activity,
-    Calendar,
-    FileText,
-    AlertTriangle,
     CheckCircle
 } from 'lucide-react';
 import { api } from '@/trpc/client';
-import { formatDistanceToNow } from 'date-fns';
 
 export default function DoctorAnalyticsPage() {
     const [selectedPeriod, setSelectedPeriod] = useState('week');
 
     // Fetch analytics data
-    const { data: reviewMetrics, isLoading: metricsLoading } = api.doctors.getReviewMetrics.useQuery({
+    const { data: reviewMetrics } = api.doctors.getReviewMetrics.useQuery({
         period: selectedPeriod as 'today' | 'week' | 'month'
     });
 
-    const { data: sessions, isLoading: sessionsLoading } = api.doctors.getAssignedSessions.useQuery({
+    const { data: sessions } = api.doctors.getAssignedSessions.useQuery({
         page: 1,
         limit: 100,
     });
@@ -171,9 +166,9 @@ export default function DoctorAnalyticsPage() {
                 </Card>
 
                 {/* Key Performance Indicators */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {performanceMetrics.map((metric, index) => (
-                        <Card key={index}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {performanceMetrics.map((metric) => (
+                        <Card key={metric.title}>
                             <CardContent className="p-6">
                                 <div className="flex items-center justify-between mb-2">
                                     <h3 className="text-sm font-medium text-gray-600">{metric.title}</h3>
@@ -200,7 +195,7 @@ export default function DoctorAnalyticsPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">
-                                {weeklyData.map((day, index) => (
+                                {weeklyData.map((day) => (
                                     <div key={day.day} className="flex items-center gap-4">
                                         <div className="w-12 text-sm font-medium text-gray-600">
                                             {day.day}
@@ -234,7 +229,7 @@ export default function DoctorAnalyticsPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="space-y-4">
-                                {diseaseDistribution.map((disease, index) => (
+                                {diseaseDistribution.map((disease) => (
                                     <div key={disease.name} className="flex items-center justify-between">
                                         <div className="flex items-center gap-3">
                                             <div className="w-3 h-3 rounded-full bg-blue-500"></div>
@@ -282,7 +277,7 @@ export default function DoctorAnalyticsPage() {
                 </Card>
 
                 {/* Summary Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     <Card>
                         <CardContent className="p-6 text-center">
                             <div className="p-3 bg-blue-100 rounded-full w-16 h-16 mx-auto mb-3 flex items-center justify-center">

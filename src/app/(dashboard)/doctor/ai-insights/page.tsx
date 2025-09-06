@@ -5,17 +5,14 @@ import { DashboardLayout } from '@/components/ui/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
     Brain,
     TrendingUp,
     Target,
-    AlertTriangle,
     CheckCircle,
     BarChart3,
     Activity,
     Clock,
-    Users,
     FileText
 } from 'lucide-react';
 import { api } from '@/trpc/client';
@@ -23,13 +20,9 @@ import { api } from '@/trpc/client';
 export default function DoctorAIInsightsPage() {
     const [selectedPeriod, setSelectedPeriod] = useState('week');
 
-    // Fetch AI performance data
-    const { data: reviewMetrics, isLoading: metricsLoading } = api.doctors.getReviewMetrics.useQuery({
-        period: selectedPeriod as 'today' | 'week' | 'month'
-    });
 
     // Fetch assigned sessions for AI analysis
-    const { data: sessions, isLoading: sessionsLoading } = api.doctors.getAssignedSessions.useQuery({
+    const { data: sessions } = api.doctors.getAssignedSessions.useQuery({
         page: 1,
         limit: 50,
     });
@@ -134,7 +127,7 @@ export default function DoctorAIInsightsPage() {
                 </Card>
 
                 {/* Key Metrics */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     <Card>
                         <CardContent className="p-6">
                             <div className="flex items-center space-x-4">
@@ -276,7 +269,7 @@ export default function DoctorAIInsightsPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                             <div className="text-center">
                                 <div className="p-3 bg-green-100 rounded-full w-16 h-16 mx-auto mb-3 flex items-center justify-center">
                                     <CheckCircle className="h-8 w-8 text-green-600" />

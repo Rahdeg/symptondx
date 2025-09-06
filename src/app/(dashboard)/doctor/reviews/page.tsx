@@ -12,13 +12,9 @@ import { Separator } from '@/components/ui/separator';
 import {
     Stethoscope,
     Clock,
-    User,
-    AlertTriangle,
     CheckCircle,
     Brain,
-    FileText,
-    Calendar,
-    Activity
+    FileText
 } from 'lucide-react';
 import { api } from '@/trpc/client';
 import { formatDistanceToNow } from 'date-fns';
@@ -204,7 +200,7 @@ export default function DoctorReviewsPage() {
                                         <div className="space-y-3">
                                             <h4 className="font-semibold">AI Predictions</h4>
                                             <div className="space-y-2">
-                                                {predictions.slice(0, 3).map((prediction, index) => (
+                                                {predictions.slice(0, 3).map((prediction) => (
                                                     <div key={prediction.id} className="p-3 border rounded-lg">
                                                         <div className="flex items-center justify-between mb-2">
                                                             <h5 className="font-medium">{prediction.disease.name}</h5>

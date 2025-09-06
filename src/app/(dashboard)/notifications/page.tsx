@@ -21,6 +21,9 @@ import {
 export default function NotificationsPage() {
     const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
 
+    // Get utils for invalidation
+    const utils = api.useUtils();
+
     // Fetch notifications
     const { data: notificationsData, refetch, isLoading } = api.notifications.getMyNotifications.useQuery({
         includeRead: true,
@@ -30,6 +33,8 @@ export default function NotificationsPage() {
     // Mark as read mutation
     const markAsReadMutation = api.notifications.markAsRead.useMutation({
         onSuccess: () => {
+            // Invalidate all notification queries to update dashboard data
+            utils.notifications.getMyNotifications.invalidate();
             refetch();
         },
         onError: () => {
@@ -41,6 +46,8 @@ export default function NotificationsPage() {
     const markAllAsReadMutation = api.notifications.markAllAsRead.useMutation({
         onSuccess: () => {
             toast.success('All notifications marked as read');
+            // Invalidate all notification queries to update dashboard data
+            utils.notifications.getMyNotifications.invalidate();
             refetch();
         },
         onError: () => {
@@ -52,6 +59,8 @@ export default function NotificationsPage() {
     const deleteNotificationMutation = api.notifications.deleteNotification.useMutation({
         onSuccess: () => {
             toast.success('Notification deleted');
+            // Invalidate all notification queries to update dashboard data
+            utils.notifications.getMyNotifications.invalidate();
             refetch();
         },
         onError: () => {
@@ -75,6 +84,8 @@ export default function NotificationsPage() {
         switch (type) {
             case 'diagnosis_complete':
                 return '✅';
+            case 'doctor_review_complete':
+                return '✅';
             case 'high_risk_alert':
                 return '🚨';
             case 'doctor_review_needed':
@@ -93,6 +104,8 @@ export default function NotificationsPage() {
             case 'high_risk_alert':
                 return 'text-red-600 bg-red-50 border-red-200';
             case 'diagnosis_complete':
+                return 'text-green-600 bg-green-50 border-green-200';
+            case 'doctor_review_complete':
                 return 'text-green-600 bg-green-50 border-green-200';
             case 'doctor_review_needed':
                 return 'text-blue-600 bg-blue-50 border-blue-200';
@@ -196,8 +209,8 @@ export default function NotificationsPage() {
                                     <Card
                                         key={notification.id}
                                         className={`transition-all hover:shadow-md ${!notification.isRead
-                                                ? 'border-l-4 border-l-blue-500 bg-blue-50/50'
-                                                : ''
+                                            ? 'border-l-4 border-l-blue-500 bg-blue-50/50'
+                                            : ''
                                             }`}
                                     >
                                         <CardContent className="p-4">

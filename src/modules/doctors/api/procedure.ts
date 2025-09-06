@@ -227,14 +227,15 @@ export const doctorsRouter = createTRPCRouter({
       .from(diagnosisSessions)
       .where(eq(diagnosisSessions.doctorId, doctorId));
 
-    // Get pending reviews
+    // Get pending reviews - sessions assigned to this doctor that need review
     const [pendingCount] = await db
       .select({ count: count() })
       .from(diagnosisSessions)
       .where(
         and(
           eq(diagnosisSessions.doctorId, doctorId),
-          eq(diagnosisSessions.status, "in_progress")
+          eq(diagnosisSessions.status, "pending"),
+          eq(diagnosisSessions.requiresDoctorReview, true)
         )
       );
 
@@ -382,6 +383,31 @@ export const doctorsRouter = createTRPCRouter({
         });
       }
 
+      // Get the diagnosis session to find the patient
+      const [sessionData] = await db
+        .select({
+          patientId: diagnosisSessions.patientId,
+          chiefComplaint: diagnosisSessions.chiefComplaint,
+        })
+        .from(diagnosisSessions)
+        .where(eq(diagnosisSessions.id, input.diagnosisSessionId))
+        .limit(1);
+
+      if (!sessionData) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Diagnosis session not found",
+        });
+      }
+
+      // Get patient's user ID for notification
+      const [patientUser] = await db
+        .select({ userId: users.id })
+        .from(patients)
+        .innerJoin(users, eq(patients.userId, users.id))
+        .where(eq(patients.id, sessionData.patientId))
+        .limit(1);
+
       // Create doctor review
       const review = await db
         .insert(doctorReviews)
@@ -409,6 +435,50 @@ export const doctorsRouter = createTRPCRouter({
           completedAt: new Date(),
         })
         .where(eq(diagnosisSessions.id, input.diagnosisSessionId));
+
+      // Update patient's medical history with the new diagnosis
+      const [patientData] = await db
+        .select({
+          medicalHistory: patients.medicalHistory,
+        })
+        .from(patients)
+        .where(eq(patients.id, sessionData.patientId))
+        .limit(1);
+
+      if (patientData) {
+        const currentHistory = patientData.medicalHistory || [];
+        const newDiagnosis = `${
+          input.doctorDiagnosis
+        } (${new Date().toLocaleDateString()})`;
+
+        // Add the new diagnosis to medical history if it's not already there
+        if (!currentHistory.includes(newDiagnosis)) {
+          await db
+            .update(patients)
+            .set({
+              medicalHistory: [...currentHistory, newDiagnosis],
+              updatedAt: new Date(),
+            })
+            .where(eq(patients.id, sessionData.patientId));
+        }
+      }
+
+      // Create notification for the patient
+      if (patientUser) {
+        await db.insert(notifications).values({
+          userId: patientUser.userId,
+          type: "doctor_review_complete",
+          title: "✅ Doctor Review Complete",
+          message: `Your diagnosis for "${sessionData.chiefComplaint}" has been reviewed by a doctor. Final diagnosis: ${input.doctorDiagnosis}`,
+          data: {
+            sessionId: input.diagnosisSessionId,
+            diagnosis: input.doctorDiagnosis,
+            doctorId: doctorData.doctorId,
+            confidence: input.confidence,
+          },
+          isRead: false,
+        });
+      }
 
       return review[0];
     }),
@@ -682,16 +752,10 @@ export const doctorsRouter = createTRPCRouter({
           startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       }
 
-      const metrics = await db
-        .select({
-          totalCases: count(diagnosisSessions.id),
-          completedReviews: count(doctorReviews.id),
-        })
+      // Get total cases assigned to this doctor in the period
+      const [totalCasesResult] = await db
+        .select({ count: count() })
         .from(diagnosisSessions)
-        .leftJoin(
-          doctorReviews,
-          eq(diagnosisSessions.id, doctorReviews.sessionId)
-        )
         .where(
           and(
             eq(diagnosisSessions.doctorId, doctorData.doctorId),
@@ -699,14 +763,44 @@ export const doctorsRouter = createTRPCRouter({
           )
         );
 
+      // Get completed reviews (cases where doctor has submitted a review)
+      const [completedReviewsResult] = await db
+        .select({ count: count() })
+        .from(doctorReviews)
+        .innerJoin(
+          diagnosisSessions,
+          eq(doctorReviews.sessionId, diagnosisSessions.id)
+        )
+        .where(
+          and(
+            eq(doctorReviews.doctorId, doctorData.doctorId),
+            gte(diagnosisSessions.createdAt, startDate)
+          )
+        );
+
+      // Get pending reviews (cases that need doctor review and are still pending)
+      const [pendingReviewsResult] = await db
+        .select({ count: count() })
+        .from(diagnosisSessions)
+        .where(
+          and(
+            eq(diagnosisSessions.doctorId, doctorData.doctorId),
+            eq(diagnosisSessions.status, "pending"),
+            eq(diagnosisSessions.requiresDoctorReview, true),
+            gte(diagnosisSessions.createdAt, startDate)
+          )
+        );
+
+      const totalCases = totalCasesResult?.count || 0;
+      const completedReviews = completedReviewsResult?.count || 0;
+      const pendingReviews = pendingReviewsResult?.count || 0;
+
       return {
-        totalCases: metrics[0]?.totalCases || 0,
-        completedReviews: metrics[0]?.completedReviews || 0,
-        pendingReviews:
-          (metrics[0]?.totalCases || 0) - (metrics[0]?.completedReviews || 0),
-        completionRate: metrics[0]?.totalCases
-          ? ((metrics[0]?.completedReviews || 0) / metrics[0]?.totalCases) * 100
-          : 0,
+        totalCases,
+        completedReviews,
+        pendingReviews,
+        completionRate:
+          totalCases > 0 ? (completedReviews / totalCases) * 100 : 0,
       };
     }),
 });

@@ -222,7 +222,7 @@ async function generateFallbackPredictions(
     // Simple symptom matching fallback
     const commonSymptoms = ["fever", "headache", "cough", "fatigue", "nausea"];
     const matchingDiseases = diseaseData
-      .filter((disease) =>
+      .filter(() =>
         commonSymptoms.some((symptom) =>
           input.symptoms.some((inputSymptom) =>
             inputSymptom.toLowerCase().includes(symptom)

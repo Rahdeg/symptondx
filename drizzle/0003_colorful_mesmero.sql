@@ -1,0 +1,1 @@
+ALTER TYPE "public"."notification_type" ADD VALUE 'doctor_review_complete' BEFORE 'high_risk_alert';

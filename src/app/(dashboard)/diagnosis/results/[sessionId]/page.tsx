@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { DashboardLayout } from '@/components/ui/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Separator } from '@/components/ui/separator';
 import {
     Brain,
     AlertTriangle,
@@ -15,22 +14,19 @@ import {
     Clock,
     TrendingUp,
     ArrowLeft,
-    Download,
     Share,
     Stethoscope,
-    Heart,
-    Activity,
     FileText,
     Calendar
 } from 'lucide-react';
 import { api } from '@/trpc/client';
 import { toast } from 'sonner';
+import { PDFExportService, type DiagnosisData } from '@/lib/pdf-export-service';
 
 export default function DiagnosisResultsPage() {
     const params = useParams();
     const router = useRouter();
     const sessionId = params.sessionId as string;
-    const [selectedPrediction, setSelectedPrediction] = useState<number>(0);
 
     // Fetch diagnosis session data
     const { data: session, isLoading: sessionLoading } = api.diagnosis.getDiagnosisSession.useQuery(
@@ -44,7 +40,13 @@ export default function DiagnosisResultsPage() {
         { enabled: !!sessionId }
     );
 
-    const isLoading = sessionLoading || predictionsLoading;
+    // Fetch doctor review
+    const { data: doctorReview, isLoading: doctorReviewLoading } = api.diagnosis.getDoctorReview.useQuery(
+        { sessionId },
+        { enabled: !!sessionId }
+    );
+
+    const isLoading = sessionLoading || predictionsLoading || doctorReviewLoading;
 
     if (isLoading) {
         return (
@@ -120,6 +122,52 @@ export default function DiagnosisResultsPage() {
         }).format(new Date(date));
     };
 
+    const handleExportPDF = async () => {
+        if (!session || !predictions) {
+            toast.error('Unable to export: Missing diagnosis data');
+            return;
+        }
+
+        try {
+            const diagnosisData: DiagnosisData = {
+                session: {
+                    id: session.id,
+                    chiefComplaint: session.chiefComplaint || '',
+                    additionalInfo: session.additionalInfo || '',
+                    status: session.status,
+                    urgencyLevel: session.urgencyLevel || '',
+                    createdAt: session.createdAt || new Date()
+                },
+                predictions: predictions.map(pred => ({
+                    disease: {
+                        name: pred.disease.name,
+                        description: pred.disease.description || '',
+                        severityLevel: pred.disease.severityLevel,
+                        icdCode: pred.disease.icdCode || undefined
+                    },
+                    confidence: pred.confidence,
+                    reasoning: pred.reasoning || undefined,
+                    riskFactors: pred.riskFactors || undefined,
+                    recommendations: pred.recommendations || undefined
+                })),
+                doctorReview: doctorReview ? {
+                    finalDiagnosis: doctorReview.finalDiagnosis,
+                    doctorName: doctorReview.doctorName || undefined,
+                    doctorSpecialization: doctorReview.doctorSpecialization || undefined,
+                    confidence: doctorReview.confidence || undefined,
+                    notes: doctorReview.notes || undefined,
+                    recommendedActions: doctorReview.recommendedActions || undefined
+                } : undefined
+            };
+
+            await PDFExportService.downloadDiagnosisPDF(diagnosisData);
+            toast.success('PDF report downloaded successfully');
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+            toast.error('Failed to generate PDF report');
+        }
+    };
+
     return (
         <DashboardLayout
             title="Diagnosis Results"
@@ -127,7 +175,7 @@ export default function DiagnosisResultsPage() {
         >
             <div className="max-w-6xl mx-auto space-y-6">
                 {/* Header Actions */}
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <Button
                         variant="outline"
                         onClick={() => router.push('/diagnosis/new')}
@@ -136,11 +184,7 @@ export default function DiagnosisResultsPage() {
                         New Analysis
                     </Button>
                     <div className="flex gap-2">
-                        <Button variant="outline" size="sm">
-                            <Download className="mr-2 h-4 w-4" />
-                            Export
-                        </Button>
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" onClick={handleExportPDF}>
                             <Share className="mr-2 h-4 w-4" />
                             Share
                         </Button>
@@ -156,7 +200,7 @@ export default function DiagnosisResultsPage() {
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                             <div className="text-center">
                                 <div className="text-3xl font-bold text-primary mb-2">
                                     {confidence.toFixed(1)}%
@@ -268,13 +312,12 @@ export default function DiagnosisResultsPage() {
                                 </CardHeader>
                                 <CardContent>
                                     <div className="space-y-3">
-                                        {predictions.slice(1, 4).map((prediction, index) => {
+                                        {predictions.slice(1, 4).map((prediction) => {
                                             const predConfidence = parseFloat(prediction.confidence) * 100;
                                             return (
                                                 <div
                                                     key={prediction.id}
-                                                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/50 cursor-pointer"
-                                                    onClick={() => setSelectedPrediction(index + 1)}
+                                                    className="flex items-center justify-between p-3 border rounded-lg"
                                                 >
                                                     <div>
                                                         <h4 className="font-medium">{prediction.disease.name}</h4>
@@ -337,12 +380,62 @@ export default function DiagnosisResultsPage() {
                                     <Clock className="h-4 w-4 text-muted-foreground" />
                                     <span>Status: {session.status}</span>
                                 </div>
-                                {session.requiresDoctorReview && (
+                                {doctorReview ? (
+                                    <div className="space-y-3">
+                                        <div className="flex items-center gap-2 text-sm text-green-600">
+                                            <CheckCircle className="h-4 w-4" />
+                                            <span>Doctor reviewed</span>
+                                        </div>
+                                        <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <Stethoscope className="h-4 w-4 text-green-600" />
+                                                <span className="font-semibold text-green-900">Doctor&apos;s Diagnosis</span>
+                                            </div>
+                                            <p className="text-sm text-green-800 font-medium mb-1">
+                                                {doctorReview.finalDiagnosis}
+                                            </p>
+                                            {doctorReview.doctorName && (
+                                                <p className="text-xs text-green-700">
+                                                    Reviewed by Dr. {doctorReview.doctorName}
+                                                    {doctorReview.doctorSpecialization && ` (${doctorReview.doctorSpecialization})`}
+                                                </p>
+                                            )}
+                                            {doctorReview.confidence && (
+                                                <div className="mt-2">
+                                                    <div className="flex items-center justify-between text-xs text-green-700 mb-1">
+                                                        <span>Confidence</span>
+                                                        <span>{doctorReview.confidence}/10</span>
+                                                    </div>
+                                                    <Progress value={(doctorReview.confidence / 10) * 100} className="h-1" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        {doctorReview.notes && (
+                                            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                                <h4 className="font-semibold text-blue-900 mb-1 text-sm">Doctor&apos;s Notes</h4>
+                                                <p className="text-sm text-blue-800">{doctorReview.notes}</p>
+                                            </div>
+                                        )}
+                                        {doctorReview.recommendedActions && doctorReview.recommendedActions.length > 0 && (
+                                            <div className="p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                                                <h4 className="font-semibold text-purple-900 mb-2 text-sm">Recommended Actions</h4>
+                                                <ul className="space-y-1">
+                                                    {doctorReview.recommendedActions.map((action, index) => (
+                                                        <li key={index} className="flex items-start gap-2 text-sm text-purple-800">
+                                                            <CheckCircle className="h-3 w-3 text-purple-600 mt-1 flex-shrink-0" />
+                                                            {action}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : session.requiresDoctorReview ? (
                                     <div className="flex items-center gap-2 text-sm text-orange-600">
                                         <AlertTriangle className="h-4 w-4" />
                                         <span>Doctor review recommended</span>
                                     </div>
-                                )}
+                                ) : null}
                             </CardContent>
                         </Card>
 

@@ -10,13 +10,9 @@ import { Label } from '@/components/ui/label';
 import {
     Users,
     Search,
-    Filter,
     Calendar,
-    Phone,
-    Mail,
-    MapPin,
     Heart,
-    Activity,
+    Mail,
     Clock,
     AlertTriangle
 } from 'lucide-react';
@@ -27,44 +23,41 @@ export default function DoctorPatientsPage() {
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
 
-    // Fetch assigned sessions with patient details
-    const { data: sessions, isLoading } = api.doctors.getAssignedSessions.useQuery({
-        page: 1,
-        limit: 50,
-    });
+    // Fetch urgent cases with patient details
+    const { data: urgentCases, isLoading } = api.doctors.getUrgentCases.useQuery();
 
-    // Get unique patients from sessions
-    const patients = sessions?.sessions ?
-        sessions.sessions.reduce((acc: any[], session: any) => {
-            const existingPatient = acc.find(p => p.patientId === session.patientId);
+    // Get unique patients from urgent cases
+    const patients = urgentCases ?
+        urgentCases.reduce((acc: Array<{ patientName: string | null; patientAge: Date | null; patientGender: string | null; sessionId: string; chiefComplaint: string | null; status: string; lastSession: string; totalSessions: number; urgencyLevel: string | null; isEmergency: boolean | null }>, urgentCase: { id: string; chiefComplaint: string | null; status: string; createdAt: Date | null; urgencyLevel: string | null; isEmergency: boolean | null; patientName: string | null; patientAge: Date | null; patientGender: string | null }) => {
+            const existingPatient = acc.find(p => p.patientName === urgentCase.patientName);
             if (!existingPatient) {
                 acc.push({
-                    patientId: session.patientId,
-                    patientName: session.patientName || 'Anonymous',
-                    patientEmail: session.patientEmail || 'No email',
-                    patientAge: session.patientAge,
-                    patientGender: session.patientGender,
+                    patientName: urgentCase.patientName,
+                    patientAge: urgentCase.patientAge,
+                    patientGender: urgentCase.patientGender,
+                    sessionId: urgentCase.id,
+                    chiefComplaint: urgentCase.chiefComplaint,
+                    status: urgentCase.status,
                     totalSessions: 1,
-                    lastSession: session.createdAt,
-                    status: session.status,
-                    urgencyLevel: session.urgencyLevel,
-                    isEmergency: session.isEmergency
+                    lastSession: urgentCase.createdAt ? urgentCase.createdAt.toISOString() : 'Unknown',
+                    urgencyLevel: urgentCase.urgencyLevel,
+                    isEmergency: urgentCase.isEmergency
                 });
             } else {
                 existingPatient.totalSessions += 1;
-                if (new Date(session.createdAt) > new Date(existingPatient.lastSession)) {
-                    existingPatient.lastSession = session.createdAt;
-                    existingPatient.status = session.status;
-                    existingPatient.urgencyLevel = session.urgencyLevel;
-                    existingPatient.isEmergency = session.isEmergency;
+                if (urgentCase.createdAt && new Date(urgentCase.createdAt) > new Date(existingPatient.lastSession)) {
+                    existingPatient.lastSession = urgentCase.createdAt.toISOString();
+                    existingPatient.status = urgentCase.status;
+                    existingPatient.urgencyLevel = urgentCase.urgencyLevel;
+                    existingPatient.isEmergency = urgentCase.isEmergency;
                 }
             }
             return acc;
         }, []) : [];
 
     const filteredPatients = patients.filter(patient => {
-        const matchesSearch = patient.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            patient.patientEmail.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSearch = patient.patientName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            patient.chiefComplaint?.toLowerCase().includes(searchTerm.toLowerCase()) || false;
         const matchesStatus = statusFilter === 'all' || patient.status === statusFilter;
         return matchesSearch && matchesStatus;
     });
@@ -79,7 +72,7 @@ export default function DoctorPatientsPage() {
         }
     };
 
-    const getUrgencyColor = (urgency: string) => {
+    const getUrgencyColor = (urgency: string | null) => {
         switch (urgency) {
             case 'high': return 'bg-red-100 text-red-800';
             case 'medium': return 'bg-yellow-100 text-yellow-800';
@@ -132,7 +125,7 @@ export default function DoctorPatientsPage() {
                 </Card>
 
                 {/* Patients List */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {isLoading ? (
                         <div className="col-span-full text-center py-8">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
@@ -140,11 +133,11 @@ export default function DoctorPatientsPage() {
                         </div>
                     ) : filteredPatients.length > 0 ? (
                         filteredPatients.map((patient) => (
-                            <Card key={patient.patientId} className="hover:shadow-lg transition-shadow">
+                            <Card key={patient.sessionId} className="hover:shadow-lg transition-shadow">
                                 <CardHeader>
                                     <CardTitle className="flex items-center gap-2">
                                         <Users className="h-5 w-5 text-blue-500" />
-                                        {patient.patientName}
+                                        {patient.patientName || 'Anonymous'}
                                         {patient.isEmergency && (
                                             <AlertTriangle className="h-4 w-4 text-red-500" />
                                         )}
@@ -154,7 +147,7 @@ export default function DoctorPatientsPage() {
                                     <div className="space-y-2 text-sm">
                                         <div className="flex items-center gap-2">
                                             <Mail className="h-4 w-4 text-muted-foreground" />
-                                            <span className="text-muted-foreground">{patient.patientEmail}</span>
+                                            <span className="text-muted-foreground">No email available</span>
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -216,7 +209,7 @@ export default function DoctorPatientsPage() {
                             <CardTitle>Patient Summary</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                                 <div className="text-center">
                                     <div className="text-2xl font-bold text-blue-600">
                                         {patients.length}

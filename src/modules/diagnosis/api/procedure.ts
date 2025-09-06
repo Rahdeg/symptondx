@@ -7,6 +7,7 @@ import {
   mlPredictions,
   diseases,
   doctors,
+  doctorReviews,
 } from "@/db/schema";
 import {
   protectedProcedure,
@@ -154,44 +155,74 @@ export const diagnosisRouter = createTRPCRouter({
 
         await db.insert(mlPredictions).values(predictionInserts);
 
-        // Update session status to completed
+        // Update session status - only complete if no doctor review is required
+        const updateData: Record<string, unknown> = {
+          finalDiagnosis: predictions[0]?.diseaseId || null,
+          confidence_score: predictions[0]?.confidence.toString() || null,
+        };
+
+        // Only set status to completed and completedAt if no doctor review is required
+        if (!session.requiresDoctorReview) {
+          updateData.status = "completed";
+          updateData.completedAt = new Date();
+        }
+
         await db
           .update(diagnosisSessions)
-          .set({
-            status: "completed",
-            finalDiagnosis: predictions[0]?.diseaseId || null,
-            confidence_score: predictions[0]?.confidence.toString() || null,
-            completedAt: new Date(),
-          })
+          .set(updateData)
           .where(eq(diagnosisSessions.id, session.id));
 
         // Create notification for diagnosis completion
         try {
           const urgencyLevel = session.urgencyLevel;
-          const notificationType =
-            urgencyLevel === "emergency" || urgencyLevel === "high"
-              ? "high_risk_alert"
-              : "diagnosis_complete";
 
-          await db.insert(notifications).values({
-            userId: patientData.userId,
-            type: notificationType,
-            title:
+          if (session.requiresDoctorReview) {
+            // Doctor review is required
+            await db.insert(notifications).values({
+              userId: patientData.userId,
+              type: "doctor_review_needed",
+              title: "🩺 Doctor Review Required",
+              message:
+                "Your diagnosis analysis is complete and has been sent to a doctor for review. You'll be notified when the review is complete.",
+              data: {
+                sessionId: session.id,
+                urgencyLevel: urgencyLevel,
+                predictionMethod: useAI ? "ai" : "ml",
+                confidence: predictions[0]?.confidence || 0,
+                requiresDoctorReview: session.requiresDoctorReview,
+              },
+              isRead: false,
+            });
+          } else {
+            // No doctor review required
+            const notificationType =
+              urgencyLevel === "emergency" || urgencyLevel === "high"
+                ? "high_risk_alert"
+                : "diagnosis_complete";
+            const title =
               urgencyLevel === "emergency" || urgencyLevel === "high"
                 ? "🚨 High Priority Diagnosis Complete"
-                : "✅ Diagnosis Analysis Complete",
-            message:
+                : "✅ Diagnosis Analysis Complete";
+            const message =
               urgencyLevel === "emergency" || urgencyLevel === "high"
                 ? `Your diagnosis analysis is complete with ${urgencyLevel} priority. Please review results immediately.`
-                : "Your symptom analysis has been completed. Please review the results.",
-            data: {
-              sessionId: session.id,
-              urgencyLevel: urgencyLevel,
-              predictionMethod: useAI ? "ai" : "ml",
-              confidence: predictions[0]?.confidence || 0,
-            },
-            isRead: false,
-          });
+                : "Your symptom analysis has been completed. Please review the results.";
+
+            await db.insert(notifications).values({
+              userId: patientData.userId,
+              type: notificationType,
+              title: title,
+              message: message,
+              data: {
+                sessionId: session.id,
+                urgencyLevel: urgencyLevel,
+                predictionMethod: useAI ? "ai" : "ml",
+                confidence: predictions[0]?.confidence || 0,
+                requiresDoctorReview: session.requiresDoctorReview,
+              },
+              isRead: false,
+            });
+          }
         } catch (notificationError) {
           console.error("Failed to create notification:", notificationError);
           // Don't fail the entire request if notification creation fails
@@ -461,5 +492,66 @@ export const diagnosisRouter = createTRPCRouter({
         .returning();
 
       return updatedSession;
+    }),
+
+  // Get doctor review for a diagnosis session
+  getDoctorReview: protectedProcedure
+    .input(z.object({ sessionId: z.string().uuid() }))
+    .query(async ({ input, ctx }) => {
+      // First verify the session exists and user has access
+      const [session] = await db
+        .select({
+          id: diagnosisSessions.id,
+          patientId: diagnosisSessions.patientId,
+          status: diagnosisSessions.status,
+        })
+        .from(diagnosisSessions)
+        .where(eq(diagnosisSessions.id, input.sessionId))
+        .limit(1);
+
+      if (!session) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Diagnosis session not found",
+        });
+      }
+
+      // Check if user has access to this session
+      if (ctx.user.role === "patient") {
+        const [patientData] = await db
+          .select({ patientId: patients.id })
+          .from(users)
+          .innerJoin(patients, eq(users.id, patients.userId))
+          .where(eq(users.clerkId, ctx.clerkUserId!))
+          .limit(1);
+
+        if (!patientData || patientData.patientId !== session.patientId) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "You don't have access to this diagnosis session",
+          });
+        }
+      }
+
+      // Get doctor review if it exists
+      const [doctorReview] = await db
+        .select({
+          id: doctorReviews.id,
+          finalDiagnosis: doctorReviews.finalDiagnosis,
+          confidence: doctorReviews.confidence,
+          notes: doctorReviews.notes,
+          agreesWithML: doctorReviews.agreesWithML,
+          recommendedActions: doctorReviews.recommendedActions,
+          createdAt: doctorReviews.createdAt,
+          doctorName: users.name,
+          doctorSpecialization: doctors.specialization,
+        })
+        .from(doctorReviews)
+        .leftJoin(doctors, eq(doctorReviews.doctorId, doctors.id))
+        .leftJoin(users, eq(doctors.userId, users.id))
+        .where(eq(doctorReviews.sessionId, input.sessionId))
+        .limit(1);
+
+      return doctorReview || null;
     }),
 });

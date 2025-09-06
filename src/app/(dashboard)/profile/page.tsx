@@ -3,16 +3,10 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { DashboardLayout } from "@/components/ui/dashboard-layout";
 import {
     User,
-    Mail,
-    Phone,
-    MapPin,
-    Calendar,
     Heart,
     AlertTriangle,
     Pill,
@@ -124,7 +118,7 @@ export default function ProfilePage() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 <div className="space-y-4">
                                     <div>
                                         <Label htmlFor="name">Full Name</Label>
@@ -171,7 +165,7 @@ export default function ProfilePage() {
                             </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 <div>
                                     <Label htmlFor="emergencyContact">Emergency Contact Name</Label>
                                     <p className="text-lg">{patientProfile?.emergencyContact || 'Not provided'}</p>

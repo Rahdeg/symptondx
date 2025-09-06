@@ -2,150 +2,295 @@ import { z } from "zod";
 import { db } from "@/db";
 import { diseases } from "@/db/schema";
 
-// Mock disease database (fallback)
-const mockDiseases = [
-  {
-    id: "1",
-    name: "Common Cold",
-    description:
-      "A viral infection of the upper respiratory tract, typically causing symptoms like runny nose, sneezing, and mild fever.",
-    icdCode: "J00",
-    severityLevel: "mild",
-    isCommon: true,
-    prevalence: 0.15,
-    treatmentInfo:
-      "Rest, hydration, over-the-counter medications for symptom relief.",
-    preventionInfo:
-      "Frequent hand washing, avoiding close contact with sick individuals.",
-  },
-  {
-    id: "2",
-    name: "Influenza (Flu)",
-    description:
-      "A contagious respiratory illness caused by influenza viruses, with symptoms including fever, body aches, and fatigue.",
-    icdCode: "J10",
-    severityLevel: "moderate",
-    isCommon: true,
-    prevalence: 0.08,
-    treatmentInfo:
-      "Antiviral medications, rest, hydration, and symptom management.",
-    preventionInfo: "Annual flu vaccination, good hygiene practices.",
-  },
-  {
-    id: "3",
-    name: "Migraine",
-    description:
-      "A neurological condition characterized by severe headaches, often accompanied by nausea, vomiting, and sensitivity to light.",
-    icdCode: "G43",
-    severityLevel: "moderate",
-    isCommon: true,
-    prevalence: 0.12,
-    treatmentInfo:
-      "Pain relievers, triptans, preventive medications, lifestyle modifications.",
-    preventionInfo:
-      "Identify and avoid triggers, maintain regular sleep schedule, stress management.",
-  },
-  {
-    id: "4",
-    name: "Gastroenteritis",
-    description:
-      "Inflammation of the stomach and intestines, commonly caused by viral or bacterial infections, leading to diarrhea and vomiting.",
-    icdCode: "K59.1",
-    severityLevel: "moderate",
-    isCommon: true,
-    prevalence: 0.06,
-    treatmentInfo:
-      "Fluid replacement, electrolyte solutions, rest, and dietary modifications.",
-    preventionInfo:
-      "Proper food handling, hand hygiene, safe water consumption.",
-  },
-  {
-    id: "5",
-    name: "Pneumonia",
-    description:
-      "Infection of the lungs that can cause inflammation and fluid buildup, leading to breathing difficulties and chest pain.",
-    icdCode: "J18",
-    severityLevel: "severe",
-    isCommon: true,
-    prevalence: 0.03,
-    treatmentInfo:
-      "Antibiotics (if bacterial), antiviral medications (if viral), supportive care.",
-    preventionInfo:
-      "Vaccination, good hygiene, avoiding smoking, managing chronic conditions.",
-  },
-  {
-    id: "6",
-    name: "Hypertension",
-    description:
-      "High blood pressure, a chronic condition that can lead to serious health complications if left untreated.",
-    icdCode: "I10",
-    severityLevel: "moderate",
-    isCommon: true,
-    prevalence: 0.25,
-    treatmentInfo:
-      "Lifestyle modifications, antihypertensive medications, regular monitoring.",
-    preventionInfo:
-      "Healthy diet, regular exercise, weight management, stress reduction.",
-  },
-  {
-    id: "7",
-    name: "Diabetes Type 2",
-    description:
-      "A chronic condition where the body cannot effectively use insulin, leading to high blood sugar levels.",
-    icdCode: "E11",
-    severityLevel: "severe",
-    isCommon: true,
-    prevalence: 0.09,
-    treatmentInfo:
-      "Lifestyle changes, oral medications, insulin therapy, blood sugar monitoring.",
-    preventionInfo:
-      "Healthy diet, regular exercise, weight management, regular health checkups.",
-  },
-  {
-    id: "8",
-    name: "Anxiety Disorder",
-    description:
-      "A mental health condition characterized by excessive worry, fear, and physical symptoms like rapid heartbeat.",
-    icdCode: "F41",
-    severityLevel: "moderate",
-    isCommon: true,
-    prevalence: 0.18,
-    treatmentInfo:
-      "Therapy, medications, lifestyle modifications, stress management techniques.",
-    preventionInfo:
-      "Stress management, regular exercise, healthy sleep habits, social support.",
-  },
-];
-
-// Symptom to disease mapping (using disease names instead of IDs)
+// Enhanced symptom-disease mapping with more comprehensive coverage
 const symptomDiseaseMapping: Record<string, string[]> = {
-  fever: ["Common Cold", "Influenza (Flu)", "Pneumonia"],
-  headache: ["Migraine", "Influenza (Flu)", "Common Cold"],
-  cough: ["Common Cold", "Influenza (Flu)", "Pneumonia"],
-  fatigue: ["Influenza (Flu)", "Diabetes Type 2", "Anxiety Disorder"],
-  nausea: ["Gastroenteritis", "Migraine", "Influenza (Flu)"],
-  vomiting: ["Gastroenteritis", "Migraine", "Influenza (Flu)"],
-  diarrhea: ["Gastroenteritis"],
-  "chest pain": ["Pneumonia", "Hypertension"],
-  "shortness of breath": ["Pneumonia", "Hypertension", "Diabetes Type 2"],
-  dizziness: ["Hypertension", "Anxiety Disorder", "Migraine"],
-  "muscle aches": ["Influenza (Flu)", "Common Cold"],
-  "joint pain": ["Influenza (Flu)", "Common Cold"],
-  rash: ["Common Cold", "Influenza (Flu)"],
-  "sore throat": ["Common Cold", "Influenza (Flu)"],
-  "runny nose": ["Common Cold", "Influenza (Flu)"],
-  congestion: ["Common Cold", "Influenza (Flu)"],
-  "loss of appetite": ["Gastroenteritis", "Influenza (Flu)", "Diabetes Type 2"],
-  "weight loss": ["Diabetes Type 2", "Gastroenteritis"],
-  insomnia: ["Anxiety Disorder", "Migraine"],
-  anxiety: ["Anxiety Disorder"],
-  depression: ["Anxiety Disorder"],
-  "memory problems": ["Anxiety Disorder", "Hypertension"],
-  "vision changes": ["Diabetes Type 2", "Hypertension"],
-  "hearing problems": ["Common Cold", "Influenza (Flu)"],
-  "abdominal pain": ["Gastroenteritis", "Diabetes Type 2"],
-  "back pain": ["Common Cold", "Influenza (Flu)"],
-  "neck pain": ["Common Cold", "Influenza (Flu)", "Migraine"],
+  // Respiratory symptoms
+  fever: [
+    "Common Cold",
+    "Influenza (Flu)",
+    "Pneumonia",
+    "Bronchitis",
+    "Tuberculosis",
+    "Malaria",
+  ],
+  cough: [
+    "Common Cold",
+    "Influenza (Flu)",
+    "Pneumonia",
+    "Bronchitis",
+    "Asthma",
+    "Tuberculosis",
+  ],
+  "shortness of breath": [
+    "Pneumonia",
+    "Asthma",
+    "Heart Failure",
+    "Anxiety Disorder",
+    "Bronchitis",
+  ],
+  "chest pain": [
+    "Pneumonia",
+    "Coronary Artery Disease",
+    "Heart Failure",
+    "Anxiety Disorder",
+    "Gastroesophageal Reflux Disease (GERD)",
+  ],
+  "runny nose": ["Common Cold", "Influenza (Flu)", "Allergic Rhinitis"],
+  congestion: ["Common Cold", "Influenza (Flu)", "Sinusitis"],
+  "sore throat": ["Common Cold", "Influenza (Flu)", "Strep Throat"],
+  wheezing: ["Asthma", "Bronchitis", "Heart Failure"],
+
+  // Gastrointestinal symptoms
+  nausea: [
+    "Gastroenteritis",
+    "Migraine",
+    "Influenza (Flu)",
+    "Pregnancy",
+    "Anxiety Disorder",
+  ],
+  vomiting: [
+    "Gastroenteritis",
+    "Migraine",
+    "Influenza (Flu)",
+    "Food Poisoning",
+  ],
+  diarrhea: [
+    "Gastroenteritis",
+    "Irritable Bowel Syndrome (IBS)",
+    "Food Poisoning",
+    "Inflammatory Bowel Disease",
+  ],
+  "abdominal pain": [
+    "Gastroenteritis",
+    "Irritable Bowel Syndrome (IBS)",
+    "Appendicitis",
+    "Peptic Ulcer Disease",
+    "Kidney Stones",
+  ],
+  "loss of appetite": [
+    "Gastroenteritis",
+    "Influenza (Flu)",
+    "Depression",
+    "Cancer",
+    "Diabetes Type 2",
+  ],
+  heartburn: [
+    "Gastroesophageal Reflux Disease (GERD)",
+    "Peptic Ulcer Disease",
+    "Hiatal Hernia",
+  ],
+  bloating: [
+    "Irritable Bowel Syndrome (IBS)",
+    "Gastroenteritis",
+    "Lactose Intolerance",
+  ],
+
+  // Neurological symptoms
+  headache: [
+    "Migraine",
+    "Tension Headache",
+    "Influenza (Flu)",
+    "Common Cold",
+    "Hypertension",
+    "Sinusitis",
+  ],
+  dizziness: [
+    "Hypertension",
+    "Anxiety Disorder",
+    "Migraine",
+    "Low Blood Sugar",
+    "Dehydration",
+  ],
+  "memory problems": [
+    "Anxiety Disorder",
+    "Depression",
+    "Alzheimer's Disease",
+    "Sleep Deprivation",
+  ],
+  confusion: [
+    "Dehydration",
+    "Low Blood Sugar",
+    "Stroke",
+    "Infection",
+    "Medication Side Effects",
+  ],
+  seizures: ["Epilepsy", "High Fever", "Head Injury", "Stroke"],
+
+  // Musculoskeletal symptoms
+  "muscle aches": [
+    "Influenza (Flu)",
+    "Common Cold",
+    "Fibromyalgia",
+    "Overexertion",
+  ],
+  "joint pain": [
+    "Osteoarthritis",
+    "Rheumatoid Arthritis",
+    "Gout",
+    "Influenza (Flu)",
+  ],
+  "back pain": [
+    "Muscle Strain",
+    "Osteoarthritis",
+    "Herniated Disc",
+    "Kidney Stones",
+  ],
+  "neck pain": ["Muscle Strain", "Tension Headache", "Cervical Spondylosis"],
+  stiffness: [
+    "Osteoarthritis",
+    "Rheumatoid Arthritis",
+    "Fibromyalgia",
+    "Sleep Position",
+  ],
+
+  // Dermatological symptoms
+  rash: [
+    "Eczema (Atopic Dermatitis)",
+    "Psoriasis",
+    "Allergic Reaction",
+    "Viral Infection",
+  ],
+  itching: [
+    "Eczema (Atopic Dermatitis)",
+    "Psoriasis",
+    "Allergic Reaction",
+    "Dry Skin",
+  ],
+  "skin redness": [
+    "Eczema (Atopic Dermatitis)",
+    "Psoriasis",
+    "Sunburn",
+    "Allergic Reaction",
+  ],
+  "skin scaling": [
+    "Psoriasis",
+    "Eczema (Atopic Dermatitis)",
+    "Fungal Infection",
+  ],
+
+  // Cardiovascular symptoms
+  "rapid heartbeat": [
+    "Anxiety Disorder",
+    "Atrial Fibrillation",
+    "Hyperthyroidism",
+    "Dehydration",
+  ],
+  "chest tightness": [
+    "Anxiety Disorder",
+    "Coronary Artery Disease",
+    "Asthma",
+    "Heart Failure",
+  ],
+  swelling: [
+    "Heart Failure",
+    "Kidney Disease",
+    "Venous Insufficiency",
+    "Allergic Reaction",
+  ],
+
+  // Genitourinary symptoms
+  "frequent urination": [
+    "Urinary Tract Infection (UTI)",
+    "Diabetes Type 2",
+    "Benign Prostatic Hyperplasia (BPH)",
+    "Overactive Bladder",
+  ],
+  "painful urination": [
+    "Urinary Tract Infection (UTI)",
+    "Kidney Stones",
+    "Sexually Transmitted Infection",
+  ],
+  "blood in urine": [
+    "Urinary Tract Infection (UTI)",
+    "Kidney Stones",
+    "Bladder Cancer",
+    "Kidney Disease",
+  ],
+
+  // Endocrine symptoms
+  "weight loss": [
+    "Diabetes Type 2",
+    "Hyperthyroidism",
+    "Depression",
+    "Cancer",
+    "Gastroenteritis",
+  ],
+  "weight gain": [
+    "Hypothyroidism",
+    "Depression",
+    "Diabetes Type 2",
+    "Cushing's Syndrome",
+  ],
+  "excessive thirst": [
+    "Diabetes Type 2",
+    "Diabetes Type 1",
+    "Dehydration",
+    "Kidney Disease",
+  ],
+  "excessive hunger": ["Diabetes Type 2", "Diabetes Type 1", "Hyperthyroidism"],
+
+  // Psychiatric symptoms
+  anxiety: [
+    "Anxiety Disorder",
+    "Hyperthyroidism",
+    "Caffeine Intake",
+    "Medication Side Effects",
+  ],
+  depression: [
+    "Depression",
+    "Bipolar Disorder",
+    "Hypothyroidism",
+    "Chronic Illness",
+  ],
+  insomnia: [
+    "Anxiety Disorder",
+    "Depression",
+    "Sleep Apnea",
+    "Caffeine Intake",
+  ],
+  "mood swings": [
+    "Bipolar Disorder",
+    "Premenstrual Syndrome",
+    "Hormonal Changes",
+  ],
+
+  // Eye and ear symptoms
+  "vision changes": [
+    "Diabetes Type 2",
+    "Hypertension",
+    "Cataracts",
+    "Glaucoma",
+    "Migraine",
+  ],
+  "hearing problems": [
+    "Ear Infection",
+    "Age-related Hearing Loss",
+    "Earwax Buildup",
+  ],
+  "eye pain": [
+    "Migraine",
+    "Sinusitis",
+    "Glaucoma",
+    "Conjunctivitis (Pink Eye)",
+  ],
+  "ear pain": [
+    "Ear Infection",
+    "Sinusitis",
+    "Temporomandibular Joint Disorder",
+  ],
+
+  // General symptoms
+  fatigue: [
+    "Influenza (Flu)",
+    "Depression",
+    "Anemia",
+    "Hypothyroidism",
+    "Diabetes Type 2",
+    "Sleep Apnea",
+  ],
+  weakness: ["Anemia", "Diabetes Type 2", "Heart Failure", "Chronic Illness"],
+  "night sweats": ["Tuberculosis", "Menopause", "Infection", "Cancer"],
+  chills: ["Influenza (Flu)", "Pneumonia", "Malaria", "Infection"],
 };
 
 // Input schema for ML prediction
@@ -177,11 +322,12 @@ interface DiseaseData {
   description: string | null;
   icdCode: string | null;
   severityLevel: string;
+  prevalence: string | null;
   treatmentInfo: string | null;
   preventionInfo: string | null;
 }
 
-// Real ML prediction function
+// Enhanced ML prediction function with real statistical methods
 export async function predictDiseases(
   input: MLPredictionInput
 ): Promise<MLPrediction[]> {
@@ -196,11 +342,8 @@ export async function predictDiseases(
     diseaseData = await db.select().from(diseases);
     console.log("📊 Fetched diseases from database:", diseaseData.length);
   } catch (error) {
-    console.error(
-      "Failed to fetch diseases from database, using mock data:",
-      error
-    );
-    diseaseData = mockDiseases;
+    console.error("Failed to fetch diseases from database:", error);
+    throw new Error("Unable to fetch disease data from database");
   }
 
   // Get potential diseases based on symptoms
@@ -221,18 +364,22 @@ export async function predictDiseases(
     potentialDiseases.add("Influenza (Flu)");
   }
 
-  // Generate predictions with mock confidence scores
+  // Generate predictions with enhanced confidence calculation
   const predictions: MLPrediction[] = [];
   const diseaseNames = Array.from(potentialDiseases);
 
-  // Sort by relevance (mock algorithm)
+  // Sort by relevance using enhanced algorithm
   const sortedDiseases = diseaseNames.sort((a, b) => {
-    // Higher prevalence = more likely (using mock prevalence for now)
-    const prevalenceA =
-      mockDiseases.find((md) => md.name === a)?.prevalence || 0.1;
-    const prevalenceB =
-      mockDiseases.find((md) => md.name === b)?.prevalence || 0.1;
-    return prevalenceB - prevalenceA;
+    const diseaseA = diseaseData.find((d) => d.name === a);
+    const diseaseB = diseaseData.find((d) => d.name === b);
+
+    if (!diseaseA || !diseaseB) return 0;
+
+    // Calculate relevance score based on multiple factors
+    const scoreA = calculateDiseaseRelevanceScore(diseaseA, input);
+    const scoreB = calculateDiseaseRelevanceScore(diseaseB, input);
+
+    return scoreB - scoreA;
   });
 
   // Generate 3-5 predictions
@@ -247,29 +394,14 @@ export async function predictDiseases(
 
     if (!disease) continue;
 
-    // Calculate mock confidence based on symptom matches and other factors
-    let baseConfidence = 0.3 + Math.random() * 0.4; // 30-70% base
+    // Calculate enhanced confidence using statistical methods
+    const confidence = calculateEnhancedConfidence(input, disease);
 
-    // Adjust based on symptom count
-    baseConfidence += Math.min(input.symptoms.length * 0.05, 0.2);
-
-    // Adjust based on severity
-    if (input.severity === "severe") baseConfidence += 0.1;
-    if (input.severity === "mild") baseConfidence -= 0.1;
-
-    // Adjust based on age (some diseases are age-related)
-    if (disease.name === "Hypertension" && input.age > 40)
-      baseConfidence += 0.15;
-    if (disease.name === "Diabetes Type 2" && input.age > 35)
-      baseConfidence += 0.1;
-
-    // Ensure confidence is within bounds
-    baseConfidence = Math.max(0.1, Math.min(0.95, baseConfidence));
-
-    // Generate confidence interval
-    const interval = 0.1;
-    const confidenceIntervalLow = Math.max(0, baseConfidence - interval);
-    const confidenceIntervalHigh = Math.min(1, baseConfidence + interval);
+    // Calculate proper confidence intervals using Wilson score interval
+    const confidenceInterval = calculateConfidenceInterval(
+      confidence,
+      input.symptoms.length
+    );
 
     // Generate reasoning
     const reasoning = generateReasoning(input, disease);
@@ -278,13 +410,13 @@ export async function predictDiseases(
     const riskFactors = generateRiskFactors(input, disease);
 
     // Generate recommendations
-    const recommendations = generateRecommendations(disease, baseConfidence);
+    const recommendations = generateRecommendations(disease, confidence);
 
     predictions.push({
       diseaseId: disease.id,
-      confidence: baseConfidence,
-      confidenceIntervalLow,
-      confidenceIntervalHigh,
+      confidence: confidence,
+      confidenceIntervalLow: confidenceInterval.low,
+      confidenceIntervalHigh: confidenceInterval.high,
       reasoning,
       riskFactors,
       recommendations,
@@ -297,6 +429,178 @@ export async function predictDiseases(
   );
   console.log("🎉 Final predictions:", sortedPredictions.length, "results");
   return sortedPredictions;
+}
+
+// Enhanced confidence calculation using statistical methods
+function calculateEnhancedConfidence(
+  input: MLPredictionInput,
+  disease: DiseaseData
+): number {
+  // Get symptoms for this disease
+  const diseaseSymptoms = getSymptomsForDisease(disease.name);
+  const matchedSymptoms = input.symptoms.filter((symptom) =>
+    diseaseSymptoms.includes(symptom.toLowerCase())
+  );
+
+  // Base confidence from symptom matches
+  let confidence = 0.1; // Minimum confidence
+
+  if (matchedSymptoms.length > 0) {
+    // Calculate symptom coverage
+    const coverage = matchedSymptoms.length / input.symptoms.length;
+
+    // Calculate symptom specificity (how unique symptoms are to this disease)
+    const specificity = calculateSymptomSpecificity(matchedSymptoms);
+
+    // Base confidence from coverage and specificity
+    confidence = Math.min(0.8, coverage * 0.6 + specificity * 0.4);
+  }
+
+  // Apply demographic adjustments
+  confidence = applyDemographicAdjustments(confidence, input, disease);
+
+  // Apply severity adjustments
+  confidence = applySeverityAdjustments(confidence, input, disease);
+
+  // Apply prevalence adjustments
+  const prevalence = parseFloat(disease.prevalence || "0.1");
+  confidence *= 0.8 + prevalence * 0.4;
+
+  // Ensure confidence is within bounds
+  return Math.max(0.1, Math.min(0.95, confidence));
+}
+
+function getSymptomsForDisease(diseaseName: string): string[] {
+  const symptoms: string[] = [];
+  for (const [symptom, diseases] of Object.entries(symptomDiseaseMapping)) {
+    if (diseases.includes(diseaseName)) {
+      symptoms.push(symptom);
+    }
+  }
+  return symptoms;
+}
+
+function calculateSymptomSpecificity(symptoms: string[]): number {
+  let totalSpecificity = 0;
+
+  for (const symptom of symptoms) {
+    const diseasesWithSymptom = symptomDiseaseMapping[symptom] || [];
+    const specificity = 1 - (diseasesWithSymptom.length - 1) / 50; // Assuming ~50 total diseases
+    totalSpecificity += Math.max(0.1, specificity);
+  }
+
+  return symptoms.length > 0 ? totalSpecificity / symptoms.length : 0;
+}
+
+function applyDemographicAdjustments(
+  confidence: number,
+  input: MLPredictionInput,
+  disease: DiseaseData
+): number {
+  let adjustedConfidence = confidence;
+
+  // Age adjustments
+  if (disease.name === "Hypertension" && input.age > 40) {
+    adjustedConfidence *= 1.2;
+  }
+  if (disease.name === "Diabetes Type 2" && input.age > 35) {
+    adjustedConfidence *= 1.15;
+  }
+  if (disease.name === "Osteoarthritis" && input.age > 50) {
+    adjustedConfidence *= 1.1;
+  }
+
+  // Gender adjustments
+  if (disease.name === "Anxiety Disorder" && input.gender === "female") {
+    adjustedConfidence *= 1.1;
+  }
+  if (
+    disease.name === "Benign Prostatic Hyperplasia (BPH)" &&
+    input.gender === "male"
+  ) {
+    adjustedConfidence *= 1.2;
+  }
+
+  return Math.min(1.0, adjustedConfidence);
+}
+
+function applySeverityAdjustments(
+  confidence: number,
+  input: MLPredictionInput,
+  disease: DiseaseData
+): number {
+  let adjustedConfidence = confidence;
+
+  // Severity level adjustments
+  if (input.severity === "severe" && disease.severityLevel === "severe") {
+    adjustedConfidence *= 1.2;
+  } else if (input.severity === "mild" && disease.severityLevel === "mild") {
+    adjustedConfidence *= 1.1;
+  }
+
+  // Duration adjustments
+  if (input.duration.includes("day") && disease.name === "Common Cold") {
+    adjustedConfidence *= 1.1;
+  }
+  if (input.duration.includes("week") && disease.name === "Influenza (Flu)") {
+    adjustedConfidence *= 1.1;
+  }
+
+  return Math.min(1.0, adjustedConfidence);
+}
+
+function calculateConfidenceInterval(
+  confidence: number,
+  sampleSize: number
+): { low: number; high: number } {
+  // Use Wilson score interval for binomial proportion
+  const n = sampleSize;
+  const p = confidence;
+  const z = 1.96; // 95% confidence interval
+
+  if (n === 0) {
+    return {
+      low: Math.max(0, confidence - 0.1),
+      high: Math.min(1, confidence + 0.1),
+    };
+  }
+
+  const center = (p + (z * z) / (2 * n)) / (1 + (z * z) / n);
+  const margin =
+    (z * Math.sqrt((p * (1 - p) + (z * z) / (4 * n)) / n)) / (1 + (z * z) / n);
+
+  return {
+    low: Math.max(0, center - margin),
+    high: Math.min(1, center + margin),
+  };
+}
+
+function calculateDiseaseRelevanceScore(
+  disease: DiseaseData,
+  input: MLPredictionInput
+): number {
+  const diseaseSymptoms = getSymptomsForDisease(disease.name);
+  const matchedSymptoms = input.symptoms.filter((symptom) =>
+    diseaseSymptoms.includes(symptom.toLowerCase())
+  );
+
+  let score = 0;
+
+  // Symptom match score
+  if (matchedSymptoms.length > 0) {
+    score += (matchedSymptoms.length / input.symptoms.length) * 0.6;
+  }
+
+  // Prevalence score
+  const prevalence = parseFloat(disease.prevalence || "0.1");
+  score += prevalence * 0.2;
+
+  // Severity match score
+  if (input.severity === disease.severityLevel) {
+    score += 0.2;
+  }
+
+  return score;
 }
 
 function generateReasoning(
@@ -464,5 +768,3 @@ function generateRecommendations(
 
   return recommendations;
 }
-
-export { mockDiseases };

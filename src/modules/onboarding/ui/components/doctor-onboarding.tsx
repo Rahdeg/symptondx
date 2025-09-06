@@ -176,7 +176,6 @@ export function DoctorOnboarding() {
 
     const handleNext = () => {
         const currentValues = watch();
-        const isValid = true;
         const missingFields: string[] = [];
 
         if (currentStep === 0) {

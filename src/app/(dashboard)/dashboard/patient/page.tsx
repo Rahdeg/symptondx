@@ -33,8 +33,8 @@ export default function PatientDashboard() {
     });
 
     // Fetch new data for enhanced dashboard
-    const { data: pendingReviews, isLoading: pendingLoading } = api.patients.getPendingDoctorReviews.useQuery();
-    const { data: reviewHistory, isLoading: historyLoading } = api.patients.getDoctorReviewHistory.useQuery({
+    const { data: pendingReviews } = api.patients.getPendingDoctorReviews.useQuery();
+    const { data: reviewHistory } = api.patients.getDoctorReviewHistory.useQuery({
         page: 1,
         limit: 3
     });
@@ -59,7 +59,7 @@ export default function PatientDashboard() {
         >
             <div className="space-y-6">
                 {/* Quick Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <Card>
                         <CardContent className="p-6">
                             <div className="flex items-center space-x-4">
@@ -126,7 +126,7 @@ export default function PatientDashboard() {
                 </div>
 
                 {/* Main Actions */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={handleStartAnalysis}>
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
@@ -231,7 +231,7 @@ export default function PatientDashboard() {
                             <div className="space-y-4">
                                 {pendingReviews.map((review) => (
                                     <div key={review.id} className="border rounded-lg p-4 bg-yellow-50">
-                                        <div className="flex items-start justify-between">
+                                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                                             <div className="flex-1">
                                                 <h4 className="font-semibold text-gray-900">
                                                     {review.chiefComplaint}
@@ -239,13 +239,13 @@ export default function PatientDashboard() {
                                                 <p className="text-sm text-gray-600 mt-1">
                                                     {review.additionalInfo}
                                                 </p>
-                                                <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2 text-sm text-gray-500">
                                                     <span>Assigned to: {review.doctorName || 'Dr. Smith'}</span>
                                                     <span>Specialization: {review.doctorSpecialization || 'General Medicine'}</span>
                                                     <span>Submitted: {formatDistanceToNow(new Date(review.createdAt || new Date()))} ago</span>
                                                 </div>
                                             </div>
-                                            <div className="flex flex-col items-end gap-2">
+                                            <div className="flex flex-col sm:items-end gap-2">
                                                 <Badge
                                                     className={
                                                         review.isEmergency
@@ -282,18 +282,18 @@ export default function PatientDashboard() {
                             <div className="space-y-4">
                                 {reviewHistory.map((review) => (
                                     <div key={review.sessionId} className="border rounded-lg p-4 bg-green-50">
-                                        <div className="flex items-start justify-between">
+                                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                                             <div className="flex-1">
                                                 <h4 className="font-semibold text-gray-900">
                                                     {review.chiefComplaint}
                                                 </h4>
                                                 <p className="text-sm text-gray-600 mt-1">
-                                                    Final Diagnosis: {review.finalDiagnosis || 'Pending'}
+                                                    Final Diagnosis: {review.doctorReview?.finalDiagnosis || review.finalDiagnosis || 'Pending'}
                                                 </p>
                                                 {review.doctorReview && (
                                                     <div className="mt-2 space-y-1">
                                                         <p className="text-sm text-gray-600">
-                                                            <strong>Doctor's Notes:</strong> {review.doctorReview.notes || 'No additional notes'}
+                                                            <strong>Doctor&apos;s Notes:</strong> {review.doctorReview.notes || 'No additional notes'}
                                                         </p>
                                                         <p className="text-sm text-gray-600">
                                                             <strong>Confidence Level:</strong> {review.doctorReview.confidence || 'N/A'}/10
@@ -301,15 +301,25 @@ export default function PatientDashboard() {
                                                         <p className="text-sm text-gray-600">
                                                             <strong>Agrees with AI:</strong> {review.doctorReview.agreesWithML ? 'Yes' : 'No'}
                                                         </p>
+                                                        {review.doctorReview.recommendedActions && review.doctorReview.recommendedActions.length > 0 && (
+                                                            <div className="mt-2">
+                                                                <p className="text-sm font-medium text-gray-700 mb-1">Recommended Actions:</p>
+                                                                <ul className="text-sm text-gray-600 list-disc list-inside">
+                                                                    {review.doctorReview.recommendedActions.map((action, index) => (
+                                                                        <li key={index}>{action}</li>
+                                                                    ))}
+                                                                </ul>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 )}
-                                                <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                                                <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 mt-2 text-sm text-gray-500">
                                                     <span>Reviewed by: {review.doctorName || 'Dr. Smith'}</span>
                                                     <span>Specialization: {review.doctorSpecialization || 'General Medicine'}</span>
                                                     <span>Completed: {formatDistanceToNow(new Date(review.completedAt || new Date()))} ago</span>
                                                 </div>
                                             </div>
-                                            <div className="flex flex-col items-end gap-2">
+                                            <div className="flex flex-col sm:items-end gap-2">
                                                 <Badge className="bg-green-100 text-green-800">
                                                     Review Complete
                                                 </Badge>

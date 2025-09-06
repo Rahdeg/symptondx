@@ -206,7 +206,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             {/* Mobile sidebar overlay */}
             {sidebarOpen && (
                 <div
-                    className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
+                    className="fixed inset-0 z-40 backdrop-blur-sm bg-white/20 lg:hidden"
                     onClick={() => setSidebarOpen(false)}
                 />
             )}
@@ -220,7 +220,12 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                 <div className="flex flex-col h-full">
                     {/* Logo */}
                     <div className="flex items-center justify-between h-16 px-6 border-b border-gray-200">
-                        <div className="flex items-center">
+                        <button
+                            onClick={() => router.push('/')}
+                            className="flex items-center group"
+                            title="Go to homepage"
+                            aria-label="Go to homepage"
+                        >
                             <Image
                                 src="/logo.png"
                                 alt="SymptomDx Logo"
@@ -228,7 +233,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
                                 height={32}
                                 className="h-8 w-auto logo-hover"
                             />
-                        </div>
+                        </button>
                         <Button
                             variant="ghost"
                             size="sm"
@@ -300,25 +305,25 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
 
             {/* Fixed Header */}
             <header className="fixed top-0 right-0 left-0 lg:left-64 bg-white shadow-sm border-b border-gray-200 z-40">
-                <div className="flex items-center justify-between h-16 px-6">
-                    <div className="flex items-center space-x-4">
+                <div className="flex items-center justify-between h-16 px-4 sm:px-6">
+                    <div className="flex items-center space-x-3 sm:space-x-4 min-w-0 flex-1">
                         <Button
                             variant="ghost"
                             size="sm"
-                            className="lg:hidden"
+                            className="lg:hidden flex-shrink-0"
                             onClick={() => setSidebarOpen(true)}
                         >
                             <Menu className="h-5 w-5" />
                         </Button>
-                        <div>
-                            <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
+                        <div className="min-w-0 flex-1">
+                            <h1 className="text-lg sm:text-xl font-semibold text-gray-900 truncate">{title}</h1>
                             {description && (
-                                <p className="text-sm text-gray-600">{description}</p>
+                                <p className="text-xs sm:text-sm text-gray-600 hidden sm:block truncate">{description}</p>
                             )}
                         </div>
                     </div>
 
-                    <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2 sm:space-x-4 flex-shrink-0">
                         {/* Notification Bell */}
                         <NotificationBell />
 
@@ -329,7 +334,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
             </header>
 
             {/* Scrollable Page content */}
-            <main className="pt-20 lg:pl-72 lg:pt-24  min-h-screen p-20">
+            <main className="pt-20 md:pt-24 lg:pl-72 lg:pt-24 min-h-screen p-4 sm:p-6 lg:p-8 xl:p-20 xl:pl-72">
                 {children}
             </main>
         </div>

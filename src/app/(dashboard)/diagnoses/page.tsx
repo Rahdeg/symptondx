@@ -23,7 +23,7 @@ export default function DiagnosesPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const limit = 10;
 
-    const { data: sessionsData, isLoading, refetch } = api.patients.getDiagnosisSessions.useQuery({
+    const { data: sessionsData, isLoading } = api.patients.getDiagnosisSessions.useQuery({
         page: currentPage,
         limit,
         status: statusFilter === 'all' ? undefined : statusFilter as "pending" | "in_progress" | "completed" | "reviewed" | "cancelled"
@@ -78,16 +78,16 @@ export default function DiagnosesPage() {
             <div className="space-y-6">
                 {/* Filters */}
                 <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Filter className="h-5 w-5" />
+                    <CardHeader className="pb-3">
+                        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                            <Filter className="h-4 w-4 sm:h-5 sm:w-5" />
                             Filters
                         </CardTitle>
                     </CardHeader>
-                    <CardContent>
+                    <CardContent className="pt-0">
                         <div className="flex gap-4 items-center">
                             <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
-                                <SelectTrigger className="w-48">
+                                <SelectTrigger className="w-full sm:w-48">
                                     <SelectValue placeholder="Filter by status" />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -112,69 +112,74 @@ export default function DiagnosesPage() {
                     ) : sessionsData?.sessions && sessionsData.sessions.length > 0 ? (
                         sessionsData.sessions.map((session) => (
                             <Card key={session.id} className="hover:shadow-md transition-shadow">
-                                <CardContent className="p-6">
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex-1">
-                                            <div className="flex items-center gap-3 mb-2">
-                                                <div className={`p-2 rounded-full ${getStatusColor(session.status)}`}>
-                                                    {getStatusIcon(session.status)}
-                                                </div>
-                                                <div>
-                                                    <h3 className="font-semibold text-lg">
-                                                        {session.chiefComplaint || 'Symptom Analysis'}
-                                                    </h3>
-                                                    <p className="text-sm text-gray-600">
-                                                        {session.createdAt ? formatDistanceToNow(new Date(session.createdAt), { addSuffix: true }) : 'Unknown date'}
-                                                    </p>
-                                                </div>
+                                <CardContent className="p-4 sm:p-6">
+                                    <div className="space-y-4">
+                                        {/* Header with status and title */}
+                                        <div className="flex items-start gap-3">
+                                            <div className={`p-2 rounded-full flex-shrink-0 ${getStatusColor(session.status)}`}>
+                                                {getStatusIcon(session.status)}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="font-semibold text-base sm:text-lg text-gray-900 break-words">
+                                                    {session.chiefComplaint || 'Symptom Analysis'}
+                                                </h3>
+                                                <p className="text-sm text-gray-600 mt-1">
+                                                    {session.createdAt ? formatDistanceToNow(new Date(session.createdAt), { addSuffix: true }) : 'Unknown date'}
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        {/* Additional info */}
+                                        {session.additionalInfo && (
+                                            <p className="text-sm text-gray-700 break-words">
+                                                {session.additionalInfo}
+                                            </p>
+                                        )}
+
+                                        {/* Date and urgency badges */}
+                                        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                                            <div className="flex items-center gap-1 text-sm">
+                                                <Calendar className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                                                <span className="text-gray-600">
+                                                    {session.createdAt ? new Date(session.createdAt).toLocaleDateString() : 'Unknown date'}
+                                                </span>
                                             </div>
 
-                                            {session.additionalInfo && (
-                                                <p className="text-sm text-gray-700 mb-3">
-                                                    {session.additionalInfo}
-                                                </p>
-                                            )}
-
-                                            <div className="flex items-center gap-4 text-sm">
-                                                <div className="flex items-center gap-1">
-                                                    <Calendar className="h-4 w-4 text-gray-500" />
-                                                    <span className="text-gray-600">
-                                                        {session.createdAt ? new Date(session.createdAt).toLocaleDateString() : 'Unknown date'}
-                                                    </span>
-                                                </div>
-
+                                            <div className="flex flex-wrap gap-2">
                                                 {session.urgencyLevel && (
-                                                    <Badge variant={getUrgencyColor(session.urgencyLevel)}>
+                                                    <Badge variant={getUrgencyColor(session.urgencyLevel)} className="text-xs">
                                                         {session.urgencyLevel.toUpperCase()} PRIORITY
                                                     </Badge>
                                                 )}
 
                                                 {session.isEmergency && (
-                                                    <Badge variant="destructive">
+                                                    <Badge variant="destructive" className="text-xs">
                                                         EMERGENCY
                                                     </Badge>
                                                 )}
                                             </div>
-
-                                            {session.finalDiagnosis && (
-                                                <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                                                    <p className="text-sm font-medium text-blue-900">Final Diagnosis:</p>
-                                                    <p className="text-blue-800">{session.finalDiagnosis}</p>
-                                                    {session.confidence_score && (
-                                                        <p className="text-xs text-blue-600 mt-1">
-                                                            Confidence: {session.confidence_score}%
-                                                        </p>
-                                                    )}
-                                                </div>
-                                            )}
                                         </div>
 
-                                        <div className="flex gap-2 ml-4">
+                                        {/* Final diagnosis */}
+                                        {session.finalDiagnosis && (
+                                            <div className="p-3 bg-blue-50 rounded-lg">
+                                                <p className="text-sm font-medium text-blue-900">Final Diagnosis:</p>
+                                                <p className="text-blue-800 break-words">{session.finalDiagnosis}</p>
+                                                {session.confidence_score && (
+                                                    <p className="text-xs text-blue-600 mt-1">
+                                                        Confidence: {session.confidence_score}%
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* View Details Button */}
+                                        <div className="flex justify-end pt-2">
                                             <Button
                                                 variant="outline"
                                                 size="sm"
                                                 onClick={() => handleViewDetails(session.id)}
-                                                className="flex items-center gap-1"
+                                                className="flex items-center gap-1 w-full sm:w-auto"
                                             >
                                                 <Eye className="h-4 w-4" />
                                                 View Details
@@ -205,26 +210,30 @@ export default function DiagnosesPage() {
 
                 {/* Pagination */}
                 {sessionsData && sessionsData.totalPages > 1 && (
-                    <div className="flex justify-center items-center gap-2">
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                            disabled={currentPage === 1}
-                        >
-                            Previous
-                        </Button>
-                        <span className="text-sm text-gray-600">
+                    <div className="flex flex-col sm:flex-row justify-center items-center gap-3 sm:gap-2">
+                        <div className="flex gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                disabled={currentPage === 1}
+                                className="px-3 sm:px-4"
+                            >
+                                Previous
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setCurrentPage(prev => Math.min(sessionsData.totalPages, prev + 1))}
+                                disabled={currentPage === sessionsData.totalPages}
+                                className="px-3 sm:px-4"
+                            >
+                                Next
+                            </Button>
+                        </div>
+                        <span className="text-sm text-gray-600 text-center">
                             Page {currentPage} of {sessionsData.totalPages}
                         </span>
-                        <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCurrentPage(prev => Math.min(sessionsData.totalPages, prev + 1))}
-                            disabled={currentPage === sessionsData.totalPages}
-                        >
-                            Next
-                        </Button>
                     </div>
                 )}
             </div>

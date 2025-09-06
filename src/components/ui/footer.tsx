@@ -14,28 +14,21 @@ const companyInfo = {
 
 const footerLinks = {
     product: [
-        { label: 'Features', href: '#features' },
-        { label: 'How it Works', href: '#how-it-works' },
-        { label: 'Pricing', href: '#pricing' },
-        { label: 'API', href: '/api' }
+        { label: 'Features', href: '/features' },
+        { label: 'How it Works', href: '/how-it-works' }
     ],
     company: [
-        { label: 'About', href: '#about' },
+        { label: 'About', href: '/about' },
         { label: 'Blog', href: '/blog' },
-        { label: 'Careers', href: '/careers' },
-        { label: 'Contact', href: '#contact' }
+        { label: 'Contact', href: '/contact' }
     ],
     legal: [
-        { label: 'Privacy Policy', href: '/privacy' },
-        { label: 'Terms of Service', href: '/terms' },
-        { label: 'Cookie Policy', href: '/cookies' },
-        { label: 'HIPAA Compliance', href: '/hipaa' }
+        { label: 'Privacy Policy', href: '/privacy-policy' },
+        { label: 'Terms of Service', href: '/terms-of-service' },
+        { label: 'HIPAA Compliance', href: '/hipaa-compliance' }
     ],
     support: [
-        { label: 'Help Center', href: '/help' },
-        { label: 'Documentation', href: '/docs' },
-        { label: 'Community', href: '/community' },
-        { label: 'Status', href: '/status' }
+        { label: 'Help Center', href: '/help-center' }
     ]
 };
 
@@ -63,6 +56,8 @@ const handleLinkClick = (href: string): void => {
         if (element) {
             element.scrollIntoView({ behavior: 'smooth' });
         }
+    } else {
+        window.location.href = href;
     }
 };
 
