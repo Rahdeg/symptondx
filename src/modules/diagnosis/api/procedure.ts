@@ -166,6 +166,11 @@ export const diagnosisRouter = createTRPCRouter({
           } catch (error) {
             console.error("Failed to setup AI processing:", error);
             // Fallback to synchronous processing only if async setup fails
+            // Add a delay in production to allow async processing to complete
+            if (process.env.NODE_ENV === "production") {
+              console.log("Waiting for async processing to complete...");
+              await new Promise((resolve) => setTimeout(resolve, 30000)); // Wait 30 seconds in production
+            }
           }
         }
 
