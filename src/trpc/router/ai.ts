@@ -4,6 +4,7 @@ import {
   protectedProcedure,
 } from "@/trpc/init";
 import { testOpenAIConnection } from "@/lib/openai-service";
+import { AIUsageTracker } from "@/lib/ai-usage-tracker";
 
 export const aiRouter = createTRPCRouter({
   // Simple status endpoint
@@ -56,5 +57,21 @@ export const aiRouter = createTRPCRouter({
         },
       ],
     };
+  }),
+
+  // Debug endpoints for development
+  getUsageStats: protectedProcedure.query(async ({ ctx }) => {
+    const userId = ctx.user.id;
+    return await AIUsageTracker.getDebugUsage(userId);
+  }),
+
+  resetUsage: protectedProcedure.mutation(async ({ ctx }) => {
+    const userId = ctx.user.id;
+    await AIUsageTracker.resetUserUsage(userId);
+    return { success: true, message: "Usage reset successfully" };
+  }),
+
+  getUsageLimits: protectedProcedure.query(async () => {
+    return AIUsageTracker.getUsageLimits();
   }),
 });

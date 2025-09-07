@@ -333,8 +333,8 @@ export async function predictDiseases(
 ): Promise<MLPrediction[]> {
   console.log("🔍 ML Prediction Input:", input);
 
-  // Simulate processing time
-  await new Promise((resolve) => setTimeout(resolve, 2000));
+  // Simulate processing time (reduced for better UX)
+  await new Promise((resolve) => setTimeout(resolve, 1000));
 
   // Fetch diseases from database
   let diseaseData;

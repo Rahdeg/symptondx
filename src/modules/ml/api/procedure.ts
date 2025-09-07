@@ -125,6 +125,7 @@ export const mlRouter = createTRPCRouter({
           reasoning: mlPredictions.reasoning,
           riskFactors: mlPredictions.riskFactors,
           recommendations: mlPredictions.recommendations,
+          aiExplanation: mlPredictions.aiExplanation,
           disease: {
             id: diseases.id,
             name: diseases.name,

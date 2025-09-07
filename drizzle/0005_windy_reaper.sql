@@ -1,0 +1,1 @@
+ALTER TABLE "ml_predictions" ADD COLUMN "ai_explanation" text;

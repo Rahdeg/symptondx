@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import React, { useEffect } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { DashboardLayout } from '@/components/ui/dashboard-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,45 +23,182 @@ import { api } from '@/trpc/client';
 import { toast } from 'sonner';
 import { PDFExportService, type DiagnosisData } from '@/lib/pdf-export-service';
 
+// Type definition for ML prediction with AI explanation
+interface MLPredictionWithAI {
+    id: string;
+    confidence: string;
+    confidenceIntervalLow: string | null;
+    confidenceIntervalHigh: string | null;
+    modelVersion: string | null;
+    reasoning: string[] | null;
+    riskFactors: string[] | null;
+    recommendations: string[] | null;
+    aiExplanation?: string | null;
+    disease: {
+        id: string;
+        name: string;
+        description: string | null;
+        icdCode: string | null;
+        severityLevel: string;
+        treatmentInfo: string | null;
+        preventionInfo: string | null;
+    };
+    createdAt: Date | null;
+}
+
 export default function DiagnosisResultsPage() {
     const params = useParams();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const sessionId = params.sessionId as string;
+    const isProcessing = searchParams.get('processing') === 'true';
+    const predictionMethod = searchParams.get('method'); // Get prediction method from URL params
 
     // Fetch diagnosis session data
-    const { data: session, isLoading: sessionLoading } = api.diagnosis.getDiagnosisSession.useQuery(
+    const { data: session, isLoading: sessionLoading, refetch: refetchSession } = api.diagnosis.getDiagnosisSession.useQuery(
         { sessionId },
         { enabled: !!sessionId }
     );
 
     // Fetch ML predictions
-    const { data: predictions, isLoading: predictionsLoading } = api.diagnosis.getMLPredictions.useQuery(
+    const { data: predictions, isLoading: predictionsLoading, refetch: refetchPredictions } = api.diagnosis.getMLPredictions.useQuery(
         { sessionId },
         { enabled: !!sessionId }
     );
 
     // Fetch doctor review
-    const { data: doctorReview, isLoading: doctorReviewLoading } = api.diagnosis.getDoctorReview.useQuery(
+    const { data: doctorReview, isLoading: doctorReviewLoading, refetch: refetchDoctorReview } = api.diagnosis.getDoctorReview.useQuery(
         { sessionId },
         { enabled: !!sessionId }
     );
 
     const isLoading = sessionLoading || predictionsLoading || doctorReviewLoading;
 
+    // Auto-refresh when processing is complete
+    useEffect(() => {
+        if (isProcessing && session && session.status === 'completed') {
+            // Remove the processing parameter and refetch data
+            const url = new URL(window.location.href);
+            url.searchParams.delete('processing');
+            window.history.replaceState({}, '', url.toString());
+
+            // Refetch all data
+            refetchSession();
+            refetchPredictions();
+            refetchDoctorReview();
+        }
+    }, [isProcessing, session, refetchSession, refetchPredictions, refetchDoctorReview]);
+
+    // Poll for updates when processing
+    useEffect(() => {
+        if (isProcessing || (session && session.status === 'in_progress')) {
+            let pollCount = 0;
+            const maxPolls = 60; // Maximum 5 minutes of polling (60 * 5 seconds)
+
+            const interval = setInterval(() => {
+                pollCount++;
+
+                // Stop polling after max attempts
+                if (pollCount >= maxPolls) {
+                    console.warn('Polling timeout reached, stopping automatic refresh');
+                    clearInterval(interval);
+                    return;
+                }
+
+                // Refetch the session data to check for completion
+                refetchSession();
+            }, 5000); // Check every 5 seconds
+
+            return () => clearInterval(interval);
+        }
+    }, [isProcessing, session?.status, refetchSession, session]); // Fixed dependency array
+
+    // Helper function to determine analysis type
+    const getAnalysisType = () => {
+        // First check URL parameter if available
+        if (predictionMethod) {
+            console.log('🔍 Analysis type from URL parameter:', predictionMethod.toUpperCase());
+            return predictionMethod.toUpperCase();
+        }
+
+        // Then check model version from predictions
+        if (predictions && predictions.length > 0) {
+            const modelVersion = predictions[0]?.modelVersion;
+            console.log('🔍 Model version detected:', modelVersion);
+
+            if (modelVersion?.includes('gpt') || modelVersion?.includes('openai') || modelVersion?.includes('ai-')) {
+                console.log('✅ Detected as AI analysis');
+                return 'AI';
+            }
+            if (modelVersion?.includes('ml-') || modelVersion?.includes('ml_')) {
+                console.log('✅ Detected as ML analysis');
+                return 'ML';
+            }
+            // Default to ML if no specific indicators found
+            console.log('⚠️ No specific indicators found, defaulting to ML');
+            return 'ML';
+        }
+        console.log('⚠️ No predictions yet, defaulting to AI');
+        return 'AI'; // Default to AI if no predictions yet
+    };
+
+    const analysisType = getAnalysisType();
+
     if (isLoading) {
         return (
             <DashboardLayout
                 title="Analyzing Symptoms"
-                description="Our AI is processing your symptoms..."
+                description={`Our ${analysisType} is processing your symptoms...`}
             >
                 <div className="max-w-4xl mx-auto">
                     <Card>
                         <CardContent className="p-12 text-center">
                             <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto mb-6"></div>
-                            <h2 className="text-2xl font-semibold mb-2">AI Analysis in Progress</h2>
+                            <h2 className="text-2xl font-semibold mb-2">{analysisType} Analysis in Progress</h2>
                             <p className="text-muted-foreground">
-                                Our advanced machine learning models are analyzing your symptoms and generating predictions...
+                                Our advanced {analysisType === 'AI' ? 'AI system' : 'machine learning models'} are analyzing your symptoms and generating predictions...
                             </p>
+                        </CardContent>
+                    </Card>
+                </div>
+            </DashboardLayout>
+        );
+    }
+
+    // Show processing state if analysis is still processing
+    if (isProcessing || (session && session.status === 'in_progress')) {
+        return (
+            <DashboardLayout
+                title={`${analysisType} Analysis in Progress`}
+                description={`Our ${analysisType} is processing your symptoms...`}
+            >
+                <div className="max-w-4xl mx-auto">
+                    <Card>
+                        <CardContent className="p-12 text-center">
+                            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary mx-auto mb-6"></div>
+                            <h2 className="text-2xl font-semibold mb-2">{analysisType} Analysis in Progress</h2>
+                            <p className="text-muted-foreground mb-4">
+                                Our advanced {analysisType === 'AI' ? 'AI system' : 'machine learning models'} are analyzing your symptoms and generating predictions...
+                            </p>
+                            <div className="bg-blue-50 p-4 rounded-lg max-w-md mx-auto">
+                                <p className="text-sm text-blue-800">
+                                    <strong>Estimated time:</strong> 2-5 minutes
+                                </p>
+                                <p className="text-sm text-blue-800 mt-1">
+                                    You&apos;ll be notified when the analysis is complete.
+                                </p>
+                            </div>
+                            <Button
+                                variant="outline"
+                                className="mt-6"
+                                onClick={() => {
+                                    refetchSession();
+                                    refetchPredictions();
+                                    refetchDoctorReview();
+                                }}
+                            >
+                                Refresh Results
+                            </Button>
                         </CardContent>
                     </Card>
                 </div>
@@ -148,7 +285,8 @@ export default function DiagnosisResultsPage() {
                     confidence: pred.confidence,
                     reasoning: pred.reasoning || undefined,
                     riskFactors: pred.riskFactors || undefined,
-                    recommendations: pred.recommendations || undefined
+                    recommendations: pred.recommendations || undefined,
+                    aiExplanation: (pred as MLPredictionWithAI).aiExplanation || undefined
                 })),
                 doctorReview: doctorReview ? {
                     finalDiagnosis: doctorReview.finalDiagnosis,
@@ -171,7 +309,7 @@ export default function DiagnosisResultsPage() {
     return (
         <DashboardLayout
             title="Diagnosis Results"
-            description="AI-powered analysis of your symptoms"
+            description={`${analysisType}-powered analysis of your symptoms`}
         >
             <div className="max-w-6xl mx-auto space-y-6">
                 {/* Header Actions */}
@@ -205,7 +343,7 @@ export default function DiagnosisResultsPage() {
                                 <div className="text-3xl font-bold text-primary mb-2">
                                     {confidence.toFixed(1)}%
                                 </div>
-                                <p className="text-sm text-muted-foreground">AI Confidence</p>
+                                <p className="text-sm text-muted-foreground">{analysisType} Confidence</p>
                                 <Progress value={confidence} className="mt-2" />
                             </div>
                             <div className="text-center">
@@ -222,7 +360,7 @@ export default function DiagnosisResultsPage() {
                             </div>
                             <div className="text-center">
                                 <div className="text-3xl font-bold text-purple-600 mb-2">
-                                    {predictions[0]?.modelVersion?.includes('gpt-3.5-turbo') ? 'AI' : 'ML'}
+                                    {analysisType}
                                 </div>
                                 <p className="text-sm text-muted-foreground">Analysis Method</p>
                             </div>
@@ -266,15 +404,15 @@ export default function DiagnosisResultsPage() {
 
                                         <div className="space-y-3">
                                             <div>
-                                                <h4 className="font-semibold mb-2">Description</h4>
+                                                <h4 className="font-semibold mb-2">{analysisType} Analysis</h4>
                                                 <p className="text-muted-foreground">
-                                                    {topPrediction.disease.description || 'No description available.'}
+                                                    {(topPrediction as MLPredictionWithAI).aiExplanation || topPrediction.disease.description || 'No analysis available.'}
                                                 </p>
                                             </div>
 
                                             {topPrediction.reasoning && topPrediction.reasoning.length > 0 && (
                                                 <div>
-                                                    <h4 className="font-semibold mb-2">AI Reasoning</h4>
+                                                    <h4 className="font-semibold mb-2">{analysisType} Reasoning</h4>
                                                     <ul className="space-y-1">
                                                         {topPrediction.reasoning.map((reason, index) => (
                                                             <li key={index} className="flex items-start gap-2 text-sm">

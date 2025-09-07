@@ -19,8 +19,12 @@ import { diagnosisRequestSchema } from "../schema";
 import { eq, desc, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { analyzeSymptomsWithAI } from "@/lib/openai-service";
+import { OptimizedAIService } from "@/lib/optimized-openai-service";
 import { predictDiseases } from "@/lib/ml-prediction-service";
 import { notifications } from "@/db/schema";
+import { inngest } from "@/lib/inngest-client";
+import { AIUsageTracker } from "@/lib/ai-usage-tracker";
+import { RateLimiter } from "@/lib/rate-limiter";
 
 export const diagnosisRouter = createTRPCRouter({
   // Start a new diagnosis session
@@ -70,29 +74,166 @@ export const diagnosisRouter = createTRPCRouter({
       let modelVersion;
 
       if (useAI) {
-        // Generate AI predictions using OpenAI
+        // Check if this should be processed asynchronously
+        const isEmergency = input.severity === "severe";
+        const useAsyncProcessing = true; // Always use async for better UX
+
+        if (useAsyncProcessing) {
+          // Process AI diagnosis asynchronously using Inngest
+          try {
+            // Check rate limits first
+            const rateLimitCheck = await RateLimiter.checkAIDiagnosisLimit(
+              patientData.userId
+            );
+            if (!rateLimitCheck.allowed) {
+              throw new TRPCError({
+                code: "TOO_MANY_REQUESTS",
+                message: `Rate limit exceeded. Try again in ${rateLimitCheck.retryAfter} seconds.`,
+              });
+            }
+
+            // Check usage limits
+            const estimatedTokens = AIUsageTracker.estimateTokens(
+              input.symptoms,
+              input.additionalNotes
+            );
+            const usageCheck = await AIUsageTracker.canMakeRequest(
+              patientData.userId,
+              estimatedTokens
+            );
+            if (!usageCheck.allowed) {
+              throw new TRPCError({
+                code: "PAYLOAD_TOO_LARGE",
+                message: `Usage limit exceeded: ${usageCheck.reason}`,
+              });
+            }
+
+            // Update session status to indicate AI processing
+            await db
+              .update(diagnosisSessions)
+              .set({
+                status: "in_progress",
+                additionalInfo: `${session.additionalInfo} [AI processing queued]`,
+              })
+              .where(eq(diagnosisSessions.id, session.id));
+
+            // Create notification for processing start
+            await db.insert(notifications).values({
+              userId: patientData.userId,
+              type: "ai_processing_started",
+              title: "🤖 AI Analysis Started",
+              message:
+                "Your symptoms are being analyzed by our AI system. You'll be notified when the analysis is complete.",
+              data: {
+                sessionId: session.id,
+                priority: isEmergency ? "emergency" : "normal",
+                estimatedTime: isEmergency ? "2-3 minutes" : "5-10 minutes",
+              },
+              isRead: false,
+            });
+
+            // Trigger async AI processing - do this after updating status
+            try {
+              await inngest.send({
+                name: "ai/diagnosis.requested",
+                data: {
+                  sessionId: session.id,
+                  userId: patientData.userId,
+                  symptoms: input.symptoms,
+                  age: input.age,
+                  gender: input.gender,
+                  duration: input.duration,
+                  severity: input.severity,
+                  additionalNotes: input.additionalNotes,
+                  priority: isEmergency ? "emergency" : "normal",
+                },
+              });
+            } catch (inngestError) {
+              console.error(
+                "Failed to send Inngest event (but continuing):",
+                inngestError
+              );
+              // Don't fallback - the event might still be processed
+            }
+
+            return {
+              sessionId: session.id,
+              status: "processing",
+              urgencyLevel: session.urgencyLevel,
+              message:
+                "AI analysis has been started. You'll be notified when complete.",
+              processingTime: isEmergency ? "2-3 minutes" : "5-10 minutes",
+            };
+          } catch (error) {
+            console.error("Failed to setup AI processing:", error);
+            // Fallback to synchronous processing
+          }
+        }
+
+        // Fallback to synchronous AI processing
         try {
-          predictions = await analyzeSymptomsWithAI({
-            symptoms: input.symptoms,
-            age: input.age,
-            gender: input.gender,
-            duration: input.duration,
-            severity: input.severity,
-            additionalNotes: input.additionalNotes,
-          });
-          modelVersion = "gpt-3.5-turbo-ai-v1.0";
+          predictions = await OptimizedAIService.analyzeSymptomsWithAI(
+            {
+              symptoms: input.symptoms,
+              age: input.age,
+              gender: input.gender,
+              duration: input.duration,
+              severity: input.severity,
+              additionalNotes: input.additionalNotes,
+            },
+            patientData.userId
+          );
+          modelVersion = "gpt-3.5-turbo-optimized-v1.0";
         } catch (aiError) {
-          console.warn("AI prediction failed, falling back to ML:", aiError);
-          // Fallback to ML if AI fails
-          predictions = await predictDiseases({
-            symptoms: input.symptoms,
-            age: input.age,
-            gender: input.gender,
-            duration: input.duration,
-            severity: input.severity,
-            additionalNotes: input.additionalNotes,
-          });
-          modelVersion = "ml-fallback-v1.0";
+          console.warn(
+            "Optimized AI prediction failed, falling back to original:",
+            aiError
+          );
+          try {
+            predictions = await analyzeSymptomsWithAI({
+              symptoms: input.symptoms,
+              age: input.age,
+              gender: input.gender,
+              duration: input.duration,
+              severity: input.severity,
+              additionalNotes: input.additionalNotes,
+            });
+            modelVersion = "gpt-3.5-turbo-ai-v1.0";
+          } catch (fallbackError) {
+            console.warn(
+              "Original AI prediction failed, falling back to ML:",
+              fallbackError
+            );
+
+            // Create notification about AI failure and ML fallback
+            await db.insert(notifications).values({
+              userId: patientData.userId,
+              type: "ai_processing_failed",
+              title: "⚠️ AI Analysis Unavailable",
+              message:
+                "AI analysis is temporarily unavailable. Using ML analysis instead.",
+              data: {
+                sessionId: session.id,
+                reason:
+                  fallbackError instanceof Error
+                    ? fallbackError.message
+                    : "Unknown error",
+                fallbackMethod: "ml",
+              },
+              isRead: false,
+            });
+
+            // Fallback to ML if AI fails
+            predictions = await predictDiseases({
+              symptoms: input.symptoms,
+              age: input.age,
+              gender: input.gender,
+              duration: input.duration,
+              severity: input.severity,
+              additionalNotes: input.additionalNotes,
+            });
+            modelVersion = "ml-fallback-v1.0";
+          }
         }
       } else {
         // Use ML predictions (mock system)
@@ -151,18 +292,23 @@ export const diagnosisRouter = createTRPCRouter({
           reasoning: prediction.reasoning,
           riskFactors: prediction.riskFactors,
           recommendations: prediction.recommendations,
+          aiExplanation:
+            "aiExplanation" in prediction
+              ? (prediction as { aiExplanation: string }).aiExplanation
+              : null,
         }));
 
         await db.insert(mlPredictions).values(predictionInserts);
 
-        // Update session status - only complete if no doctor review is required
+        // Update session status
         const updateData: Record<string, unknown> = {
           finalDiagnosis: predictions[0]?.diseaseId || null,
           confidence_score: predictions[0]?.confidence.toString() || null,
         };
 
-        // Only set status to completed and completedAt if no doctor review is required
-        if (!session.requiresDoctorReview) {
+        // For ML predictions, always complete immediately (doctor review is optional)
+        // For AI predictions, only complete if no doctor review is required
+        if (input.predictionMethod === "ml" || !session.requiresDoctorReview) {
           updateData.status = "completed";
           updateData.completedAt = new Date();
         }
@@ -176,8 +322,8 @@ export const diagnosisRouter = createTRPCRouter({
         try {
           const urgencyLevel = session.urgencyLevel;
 
-          if (session.requiresDoctorReview) {
-            // Doctor review is required
+          if (session.requiresDoctorReview && input.predictionMethod === "ai") {
+            // Doctor review is required for AI predictions
             await db.insert(notifications).values({
               userId: patientData.userId,
               type: "doctor_review_needed",
@@ -194,19 +340,33 @@ export const diagnosisRouter = createTRPCRouter({
               isRead: false,
             });
           } else {
-            // No doctor review required
+            // No doctor review required OR ML prediction completed
             const notificationType =
               urgencyLevel === "emergency" || urgencyLevel === "high"
                 ? "high_risk_alert"
                 : "diagnosis_complete";
-            const title =
-              urgencyLevel === "emergency" || urgencyLevel === "high"
-                ? "🚨 High Priority Diagnosis Complete"
-                : "✅ Diagnosis Analysis Complete";
-            const message =
-              urgencyLevel === "emergency" || urgencyLevel === "high"
-                ? `Your diagnosis analysis is complete with ${urgencyLevel} priority. Please review results immediately.`
-                : "Your symptom analysis has been completed. Please review the results.";
+
+            let title, message;
+
+            if (
+              session.requiresDoctorReview &&
+              input.predictionMethod === "ml"
+            ) {
+              // ML prediction completed but doctor review is recommended
+              title = "✅ ML Analysis Complete";
+              message =
+                "Your ML analysis is complete. Results are available for review. Doctor consultation is recommended for severe symptoms.";
+            } else {
+              // No doctor review required
+              title =
+                urgencyLevel === "emergency" || urgencyLevel === "high"
+                  ? "🚨 High Priority Diagnosis Complete"
+                  : "✅ Diagnosis Analysis Complete";
+              message =
+                urgencyLevel === "emergency" || urgencyLevel === "high"
+                  ? `Your diagnosis analysis is complete with ${urgencyLevel} priority. Please review results immediately.`
+                  : "Your symptom analysis has been completed. Please review the results.";
+            }
 
             await db.insert(notifications).values({
               userId: patientData.userId,
@@ -339,6 +499,7 @@ export const diagnosisRouter = createTRPCRouter({
           reasoning: mlPredictions.reasoning,
           riskFactors: mlPredictions.riskFactors,
           recommendations: mlPredictions.recommendations,
+          aiExplanation: mlPredictions.aiExplanation,
           disease: {
             id: diseases.id,
             name: diseases.name,
@@ -492,6 +653,83 @@ export const diagnosisRouter = createTRPCRouter({
         .returning();
 
       return updatedSession;
+    }),
+
+  // Check AI processing status
+  checkAIProcessingStatus: protectedProcedure
+    .input(z.object({ sessionId: z.string().uuid() }))
+    .query(async ({ input, ctx }) => {
+      const [session] = await db
+        .select({
+          id: diagnosisSessions.id,
+          status: diagnosisSessions.status,
+          urgencyLevel: diagnosisSessions.urgencyLevel,
+          createdAt: diagnosisSessions.createdAt,
+          completedAt: diagnosisSessions.completedAt,
+        })
+        .from(diagnosisSessions)
+        .where(eq(diagnosisSessions.id, input.sessionId))
+        .limit(1);
+
+      if (!session) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Diagnosis session not found",
+        });
+      }
+
+      // Check if user has access to this session
+      if (ctx.user.role === "patient") {
+        const [patientData] = await db
+          .select({ patientId: patients.id })
+          .from(users)
+          .innerJoin(patients, eq(users.id, patients.userId))
+          .where(eq(users.clerkId, ctx.clerkUserId!))
+          .limit(1);
+
+        if (!patientData) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Patient not found",
+          });
+        }
+
+        const [sessionPatient] = await db
+          .select({ patientId: diagnosisSessions.patientId })
+          .from(diagnosisSessions)
+          .where(eq(diagnosisSessions.id, input.sessionId))
+          .limit(1);
+
+        if (
+          !sessionPatient ||
+          sessionPatient.patientId !== patientData.patientId
+        ) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "You don't have access to this diagnosis session",
+          });
+        }
+      }
+
+      const isProcessing = session.status === "in_progress";
+      const isCompleted = session.status === "completed";
+      const processingTime = session.completedAt
+        ? session.completedAt.getTime() -
+          (session.createdAt?.getTime() || Date.now())
+        : Date.now() - (session.createdAt?.getTime() || Date.now());
+
+      return {
+        sessionId: session.id,
+        status: session.status,
+        isProcessing,
+        isCompleted,
+        urgencyLevel: session.urgencyLevel,
+        processingTime: Math.round(processingTime / 1000), // seconds
+        estimatedTimeRemaining: isProcessing
+          ? (session.urgencyLevel === "high" ? 180 : 600) -
+            Math.round(processingTime / 1000)
+          : 0,
+      };
     }),
 
   // Get doctor review for a diagnosis session

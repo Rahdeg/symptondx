@@ -20,6 +20,7 @@ export interface DiagnosisData {
     reasoning?: string[];
     riskFactors?: string[];
     recommendations?: string[];
+    aiExplanation?: string;
   }>;
   doctorReview?: {
     finalDiagnosis: string;
@@ -223,15 +224,15 @@ export class PDFExportService {
 
       yPosition += 10;
 
-      // Description
-      if (topPrediction.disease.description) {
+      // AI Analysis
+      if (topPrediction.aiExplanation || topPrediction.disease.description) {
         checkNewPage(20);
         doc.setFontSize(12);
         doc.setFont("helvetica", "bold");
-        yPosition = addText("Description:", margin, yPosition);
+        yPosition = addText("AI Analysis:", margin, yPosition);
         doc.setFont("helvetica", "normal");
         yPosition = addText(
-          topPrediction.disease.description,
+          topPrediction.aiExplanation || topPrediction.disease.description,
           margin,
           yPosition + 2
         );

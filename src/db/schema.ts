@@ -57,6 +57,10 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "high_risk_alert",
   "follow_up_reminder",
   "system_update",
+  "ai_processing_started",
+  "rate_limit_exceeded",
+  "usage_limit_exceeded",
+  "ai_processing_failed",
 ]);
 
 // Core Tables
@@ -195,6 +199,7 @@ export const mlPredictions = pgTable("ml_predictions", {
   reasoning: json("reasoning").$type<string[]>(),
   riskFactors: json("risk_factors").$type<string[]>(),
   recommendations: json("recommendations").$type<string[]>(),
+  aiExplanation: text("ai_explanation"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -366,5 +371,35 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
   user: one(users, {
     fields: [notifications.userId],
     references: [users.id],
+  }),
+}));
+
+// AI Usage Tracking Table
+export const aiUsageLogs = pgTable("ai_usage_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  sessionId: uuid("session_id").references(() => diagnosisSessions.id, {
+    onDelete: "cascade",
+  }),
+  tokensUsed: integer("tokens_used").notNull(),
+  cost: decimal("cost", { precision: 10, scale: 4 }).notNull(),
+  model: varchar("model", { length: 100 }).notNull(),
+  endpoint: varchar("endpoint", { length: 100 }).notNull(),
+  processingTime: integer("processing_time"), // in milliseconds
+  success: boolean("success").notNull().default(true),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const aiUsageLogsRelations = relations(aiUsageLogs, ({ one }) => ({
+  user: one(users, {
+    fields: [aiUsageLogs.userId],
+    references: [users.id],
+  }),
+  session: one(diagnosisSessions, {
+    fields: [aiUsageLogs.sessionId],
+    references: [diagnosisSessions.id],
   }),
 }));

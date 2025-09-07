@@ -86,9 +86,15 @@ export default function NewDiagnosisPage() {
     });
 
     const startDiagnosisMutation = api.diagnosis.startDiagnosis.useMutation({
-        onSuccess: (data: { sessionId: string }) => {
-            toast.success('Diagnosis analysis completed successfully!');
-            router.push(`/diagnosis/results/${data.sessionId}`);
+        onSuccess: (data: { sessionId: string; status?: string; message?: string }) => {
+            if (data.status === 'processing') {
+                toast.success(data.message || `${watch('predictionMethod') === 'ai' ? 'AI' : 'ML'} analysis started! You&apos;ll be notified when complete.`);
+                // Redirect to a processing page or show a different message
+                router.push(`/diagnosis/results/${data.sessionId}?processing=true&method=${watch('predictionMethod')}`);
+            } else {
+                toast.success('Diagnosis analysis completed successfully!');
+                router.push(`/diagnosis/results/${data.sessionId}?method=${watch('predictionMethod')}`);
+            }
         },
         onError: (error: { message?: string }) => {
             toast.error(error.message || 'Failed to start diagnosis');
@@ -275,6 +281,7 @@ export default function NewDiagnosisPage() {
                                                 id="age"
                                                 type="number"
                                                 placeholder="Enter your age"
+                                                autoFocus
                                                 {...register('age', { valueAsNumber: true })}
                                             />
                                             {errors.age && (
@@ -376,7 +383,7 @@ export default function NewDiagnosisPage() {
                                                 </div>
                                                 <div className="text-left">
                                                     <p className="font-medium">Machine Learning</p>
-                                                    <p className="text-sm text-muted-foreground">Fast, rule-based analysis using symptom patterns</p>
+                                                    <p className=" text-xs truncate w-full md:text-sm">Fast, rule-based analysis using symptom patterns</p>
                                                 </div>
                                             </Button>
                                             <Button
@@ -392,7 +399,7 @@ export default function NewDiagnosisPage() {
                                                 </div>
                                                 <div className="text-left">
                                                     <p className="font-medium">OpenAI GPT-4</p>
-                                                    <p className="text-sm text-muted-foreground">Advanced AI analysis with natural language understanding</p>
+                                                    <p className=" text-xs md:text-sm truncate w-full">Advanced AI analysis with natural language understanding</p>
                                                 </div>
                                             </Button>
                                         </div>
@@ -439,9 +446,9 @@ export default function NewDiagnosisPage() {
                                             <div className="flex items-start gap-3">
                                                 <Brain className="h-5 w-5 text-blue-600 mt-0.5" />
                                                 <div>
-                                                    <h4 className="font-semibold text-blue-900">AI Analysis Only</h4>
+                                                    <h4 className="font-semibold text-blue-900">{watch('predictionMethod') === 'ai' ? 'AI' : 'ML'} Analysis Only</h4>
                                                     <p className="text-sm text-blue-800 mt-1">
-                                                        Your symptoms will be analyzed by our AI system.
+                                                        Your symptoms will be analyzed by our {watch('predictionMethod') === 'ai' ? 'AI system' : 'machine learning models'}.
                                                         You can still get a doctor review later if needed.
                                                     </p>
                                                 </div>
@@ -564,7 +571,7 @@ export default function NewDiagnosisPage() {
                                 ) : (
                                     <>
                                         <Brain className="mr-2 h-4 w-4" />
-                                        {showDoctorSelection ? 'Start Analysis with Doctor Review' : 'Start AI Analysis'}
+                                        {showDoctorSelection ? 'Start Analysis with Doctor Review' : `Start ${watch('predictionMethod') === 'ai' ? 'AI' : 'ML'} Analysis`}
                                     </>
                                 )}
                             </Button>
