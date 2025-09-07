@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
     Activity,
     Calendar,
@@ -109,6 +110,10 @@ export default function HealthHistoryPage() {
         }
     };
 
+    const handleViewDetails = (sessionId: string) => {
+        window.location.href = `/diagnosis/results/${sessionId}`;
+    };
+
     if (isLoading) {
         return (
             <DashboardLayout
@@ -138,20 +143,20 @@ export default function HealthHistoryPage() {
             <div className="max-w-6xl mx-auto space-y-6">
                 {/* Header Controls */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                        <h1 className="text-3xl font-bold">Health History</h1>
-                        <p className="text-muted-foreground">
+                    <div className="flex-1 min-w-0">
+                        <h1 className="text-2xl sm:text-3xl font-bold">Health History</h1>
+                        <p className="text-sm sm:text-base text-muted-foreground">
                             Track your health journey and diagnostic history
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm">
-                            <Download className="mr-2 h-4 w-4" />
-                            Export
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+                        <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                            <Download className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                            <span className="text-xs sm:text-sm">Export</span>
                         </Button>
-                        <Button variant="outline" size="sm">
-                            <Filter className="mr-2 h-4 w-4" />
-                            Filter
+                        <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                            <Filter className="mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                            <span className="text-xs sm:text-sm">Filter</span>
                         </Button>
                     </div>
                 </div>
@@ -171,29 +176,29 @@ export default function HealthHistoryPage() {
                                     />
                                 </div>
                             </div>
-                            <div className="flex gap-2">
-                                <select
-                                    value={selectedTimeRange}
-                                    onChange={(e) => setSelectedTimeRange(e.target.value as 'all' | '3m' | '6m' | '1y')}
-                                    className="px-3 py-2 border rounded-md text-sm"
-                                    title="Select time range filter"
-                                >
-                                    <option value="all">All Time</option>
-                                    <option value="3m">Last 3 Months</option>
-                                    <option value="6m">Last 6 Months</option>
-                                    <option value="1y">Last Year</option>
-                                </select>
-                                <select
-                                    value={selectedStatus}
-                                    onChange={(e) => setSelectedStatus(e.target.value as 'all' | 'completed' | 'pending' | 'reviewed')}
-                                    className="px-3 py-2 border rounded-md text-sm"
-                                    title="Select status filter"
-                                >
-                                    <option value="all">All Status</option>
-                                    <option value="completed">Completed</option>
-                                    <option value="pending">Pending</option>
-                                    <option value="reviewed">Reviewed</option>
-                                </select>
+                            <div className="flex flex-col sm:flex-row gap-2">
+                                <Select value={selectedTimeRange} onValueChange={(value) => setSelectedTimeRange(value as 'all' | '3m' | '6m' | '1y')}>
+                                    <SelectTrigger className="w-full sm:w-48">
+                                        <SelectValue placeholder="Select time range" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Time</SelectItem>
+                                        <SelectItem value="3m">Last 3 Months</SelectItem>
+                                        <SelectItem value="6m">Last 6 Months</SelectItem>
+                                        <SelectItem value="1y">Last Year</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <Select value={selectedStatus} onValueChange={(value) => setSelectedStatus(value as 'all' | 'completed' | 'pending' | 'reviewed')}>
+                                    <SelectTrigger className="w-full sm:w-48">
+                                        <SelectValue placeholder="Select status" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="all">All Status</SelectItem>
+                                        <SelectItem value="completed">Completed</SelectItem>
+                                        <SelectItem value="pending">Pending</SelectItem>
+                                        <SelectItem value="reviewed">Reviewed</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
                     </CardContent>
@@ -268,10 +273,10 @@ export default function HealthHistoryPage() {
 
                 {/* Main Content Tabs */}
                 <Tabs defaultValue="diagnoses" className="space-y-6">
-                    <TabsList className="grid w-full grid-cols-1 sm:grid-cols-3">
-                        <TabsTrigger value="diagnoses">Diagnoses</TabsTrigger>
-                        <TabsTrigger value="reviews">Doctor Reviews</TabsTrigger>
-                        <TabsTrigger value="trends">Health Trends</TabsTrigger>
+                    <TabsList className="grid w-full grid-cols-3">
+                        <TabsTrigger value="diagnoses" className="text-xs sm:text-sm">Diagnoses</TabsTrigger>
+                        <TabsTrigger value="reviews" className="text-xs sm:text-sm">Reviews</TabsTrigger>
+                        <TabsTrigger value="trends" className="text-xs sm:text-sm">Trends</TabsTrigger>
                     </TabsList>
 
                     {/* Diagnoses Tab */}
@@ -303,56 +308,70 @@ export default function HealthHistoryPage() {
                                         </div>
                                     ) : (
                                         filteredSessions.map((session) => (
-                                            <div key={session.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                                                <div className="flex items-start justify-between">
-                                                    <div className="flex-1">
-                                                        <div className="flex items-center gap-3 mb-2">
-                                                            {getStatusIcon(session.status)}
-                                                            <h4 className="font-semibold text-gray-900">
-                                                                {session.chiefComplaint || 'Symptom Analysis'}
-                                                            </h4>
-                                                            <Badge className={getStatusColor(session.status)}>
-                                                                {session.status}
-                                                            </Badge>
-                                                            <Badge className={getUrgencyColor(session.urgencyLevel || 'medium')}>
-                                                                {session.urgencyLevel || 'Medium'} Priority
-                                                            </Badge>
-                                                        </div>
+                                            <div key={session.id} className="border rounded-lg p-3 sm:p-4 hover:bg-gray-50 transition-colors">
+                                                <div className="space-y-3">
+                                                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-start gap-3 mb-2">
+                                                                <div className="flex-shrink-0 mt-0.5">
+                                                                    {getStatusIcon(session.status)}
+                                                                </div>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <h4 className="font-semibold text-gray-900 break-words text-sm sm:text-base">
+                                                                        {session.chiefComplaint || 'Symptom Analysis'}
+                                                                    </h4>
+                                                                    <div className="flex flex-wrap gap-2 mt-2">
+                                                                        <Badge className={`${getStatusColor(session.status)} text-xs`}>
+                                                                            {session.status}
+                                                                        </Badge>
+                                                                        <Badge className={`${getUrgencyColor(session.urgencyLevel || 'medium')} text-xs`}>
+                                                                            {session.urgencyLevel || 'Medium'} Priority
+                                                                        </Badge>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
 
-                                                        {session.finalDiagnosis && (
-                                                            <p className="text-sm text-gray-600 mb-2">
-                                                                <strong>Diagnosis:</strong> {session.finalDiagnosis}
-                                                            </p>
-                                                        )}
-
-                                                        {session.additionalInfo && (
-                                                            <p className="text-sm text-gray-600 mb-2">
-                                                                {session.additionalInfo}
-                                                            </p>
-                                                        )}
-
-                                                        <div className="flex items-center gap-4 text-sm text-gray-500">
-                                                            <span className="flex items-center gap-1">
-                                                                <Calendar className="h-4 w-4" />
-                                                                {session.createdAt ? format(new Date(session.createdAt), 'MMM dd, yyyy') : 'Unknown date'}
-                                                            </span>
-                                                            <span>
-                                                                {session.createdAt ? formatDistanceToNow(new Date(session.createdAt), { addSuffix: true }) : 'Unknown time'}
-                                                            </span>
-                                                            {session.confidence_score && (
-                                                                <span className="flex items-center gap-1">
-                                                                    <Brain className="h-4 w-4" />
-                                                                    {(parseFloat(session.confidence_score) * 100).toFixed(1)}% confidence
-                                                                </span>
+                                                            {session.finalDiagnosis && (
+                                                                <div className="p-2 sm:p-3 bg-blue-50 rounded-lg mb-2">
+                                                                    <p className="text-xs sm:text-sm text-blue-900 font-medium">Diagnosis:</p>
+                                                                    <p className="text-xs sm:text-sm text-blue-800 break-words">{session.finalDiagnosis}</p>
+                                                                </div>
                                                             )}
-                                                        </div>
-                                                    </div>
 
-                                                    <div className="flex items-center gap-2">
-                                                        <Button variant="outline" size="sm">
-                                                            <Eye className="h-4 w-4 mr-1" />
-                                                            View
-                                                        </Button>
+                                                            {session.additionalInfo && (
+                                                                <p className="text-xs sm:text-sm text-gray-600 mb-2 break-words">
+                                                                    {session.additionalInfo}
+                                                                </p>
+                                                            )}
+
+                                                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500">
+                                                                <span className="flex items-center gap-1 flex-shrink-0">
+                                                                    <Calendar className="h-3 w-3 sm:h-4 sm:w-4" />
+                                                                    {session.createdAt ? format(new Date(session.createdAt), 'MMM dd, yyyy') : 'Unknown date'}
+                                                                </span>
+                                                                <span className="flex-shrink-0">
+                                                                    {session.createdAt ? formatDistanceToNow(new Date(session.createdAt), { addSuffix: true }) : 'Unknown time'}
+                                                                </span>
+                                                                {session.confidence_score && (
+                                                                    <span className="flex items-center gap-1 flex-shrink-0">
+                                                                        <Brain className="h-3 w-3 sm:h-4 sm:w-4" />
+                                                                        {(parseFloat(session.confidence_score) * 100).toFixed(1)}% confidence
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="flex justify-end sm:justify-start">
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="w-full sm:w-auto"
+                                                                onClick={() => handleViewDetails(session.id)}
+                                                            >
+                                                                <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
+                                                                <span className="text-xs sm:text-sm">View</span>
+                                                            </Button>
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -379,59 +398,75 @@ export default function HealthHistoryPage() {
                                 <div className="space-y-4">
                                     {doctorReviews && doctorReviews.length > 0 ? (
                                         doctorReviews.map((review) => (
-                                            <div key={review.sessionId} className="border rounded-lg p-4 bg-purple-50">
-                                                <div className="flex items-start justify-between">
-                                                    <div className="flex-1">
-                                                        <h4 className="font-semibold text-gray-900 mb-2">
-                                                            {review.chiefComplaint}
-                                                        </h4>
-                                                        <p className="text-sm text-gray-600 mb-2">
-                                                            <strong>Final Diagnosis:</strong> {review.doctorReview?.finalDiagnosis || review.finalDiagnosis || 'Pending'}
-                                                        </p>
-
-                                                        {review.doctorReview && (
-                                                            <div className="mt-3 space-y-2">
-                                                                <p className="text-sm text-gray-600">
-                                                                    <strong>Doctor&apos;s Notes:</strong> {review.doctorReview.notes || 'No additional notes'}
+                                            <div key={review.sessionId} className="border rounded-lg p-3 sm:p-4 bg-purple-50">
+                                                <div className="space-y-3">
+                                                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                                                        <div className="flex-1 min-w-0">
+                                                            <h4 className="font-semibold text-gray-900 text-sm sm:text-base break-words mb-2">
+                                                                {review.chiefComplaint}
+                                                            </h4>
+                                                            <div className="p-2 sm:p-3 bg-white rounded-lg mb-3">
+                                                                <p className="text-xs sm:text-sm text-gray-600 mb-1">
+                                                                    <strong>Final Diagnosis:</strong>
                                                                 </p>
-                                                                <div className="flex items-center gap-4 text-sm">
-                                                                    <span>
-                                                                        <strong>Confidence:</strong> {review.doctorReview.confidence || 'N/A'}/10
-                                                                    </span>
-                                                                    <span>
-                                                                        <strong>Agrees with AI:</strong> {review.doctorReview.agreesWithML ? 'Yes' : 'No'}
-                                                                    </span>
-                                                                </div>
-                                                                {review.doctorReview.recommendedActions && review.doctorReview.recommendedActions.length > 0 && (
-                                                                    <div className="mt-2">
-                                                                        <p className="text-sm font-medium text-gray-700 mb-1">Recommended Actions:</p>
-                                                                        <ul className="text-sm text-gray-600 list-disc list-inside">
-                                                                            {review.doctorReview.recommendedActions.map((action, index) => (
-                                                                                <li key={index}>{action}</li>
-                                                                            ))}
-                                                                        </ul>
-                                                                    </div>
-                                                                )}
+                                                                <p className="text-xs sm:text-sm text-gray-800 break-words">
+                                                                    {review.doctorReview?.finalDiagnosis || review.finalDiagnosis || 'Pending'}
+                                                                </p>
                                                             </div>
-                                                        )}
 
-                                                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                                                            <span>Reviewed by: {review.doctorName || 'Dr. Smith'}</span>
-                                                            <span>Specialization: {review.doctorSpecialization || 'General Medicine'}</span>
-                                                            <span>
-                                                                {review.completedAt ? formatDistanceToNow(new Date(review.completedAt), { addSuffix: true }) : 'Unknown time'}
-                                                            </span>
+                                                            {review.doctorReview && (
+                                                                <div className="space-y-3">
+                                                                    <div className="p-2 sm:p-3 bg-white rounded-lg">
+                                                                        <p className="text-xs sm:text-sm text-gray-600 mb-1">
+                                                                            <strong>Doctor&apos;s Notes:</strong>
+                                                                        </p>
+                                                                        <p className="text-xs sm:text-sm text-gray-800 break-words">
+                                                                            {review.doctorReview.notes || 'No additional notes'}
+                                                                        </p>
+                                                                    </div>
+                                                                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 text-xs sm:text-sm">
+                                                                        <span className="bg-white px-2 py-1 rounded">
+                                                                            <strong>Confidence:</strong> {review.doctorReview.confidence || 'N/A'}/10
+                                                                        </span>
+                                                                        <span className="bg-white px-2 py-1 rounded">
+                                                                            <strong>Agrees with AI:</strong> {review.doctorReview.agreesWithML ? 'Yes' : 'No'}
+                                                                        </span>
+                                                                    </div>
+                                                                    {review.doctorReview.recommendedActions && review.doctorReview.recommendedActions.length > 0 && (
+                                                                        <div className="p-2 sm:p-3 bg-white rounded-lg">
+                                                                            <p className="text-xs sm:text-sm font-medium text-gray-700 mb-2">Recommended Actions:</p>
+                                                                            <ul className="text-xs sm:text-sm text-gray-600 list-disc list-inside space-y-1">
+                                                                                {review.doctorReview.recommendedActions.map((action, index) => (
+                                                                                    <li key={index} className="break-words">{action}</li>
+                                                                                ))}
+                                                                            </ul>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+
+                                                            <div className="flex flex-col gap-2 mt-3 text-xs sm:text-sm text-gray-500">
+                                                                <span className="flex items-center gap-1">
+                                                                    <strong>Reviewed by:</strong> {review.doctorName || 'Dr. Smith'}
+                                                                </span>
+                                                                <span className="flex items-center gap-1">
+                                                                    <strong>Specialization:</strong> {review.doctorSpecialization || 'General Medicine'}
+                                                                </span>
+                                                                <span className="flex items-center gap-1">
+                                                                    <strong>Completed:</strong> {review.completedAt ? formatDistanceToNow(new Date(review.completedAt), { addSuffix: true }) : 'Unknown time'}
+                                                                </span>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                    <div className="flex flex-col items-end gap-2">
-                                                        <Badge className="bg-purple-100 text-purple-800">
-                                                            Review Complete
-                                                        </Badge>
-                                                        {review.doctorReview?.confidence && (
-                                                            <Badge variant="outline">
-                                                                Confidence: {review.doctorReview.confidence}/10
+                                                        <div className="flex flex-col sm:items-end gap-2">
+                                                            <Badge className="bg-purple-100 text-purple-800 text-xs">
+                                                                Review Complete
                                                             </Badge>
-                                                        )}
+                                                            {review.doctorReview?.confidence && (
+                                                                <Badge variant="outline" className="text-xs">
+                                                                    Confidence: {review.doctorReview.confidence}/10
+                                                                </Badge>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
@@ -452,19 +487,19 @@ export default function HealthHistoryPage() {
 
                     {/* Health Trends Tab */}
                     <TabsContent value="trends" className="space-y-6">
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
                             <Card>
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <BarChart3 className="h-5 w-5 text-green-500" />
+                                <CardHeader className="pb-3 sm:pb-6">
+                                    <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                                        <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-green-500" />
                                         Diagnosis Frequency
                                     </CardTitle>
                                 </CardHeader>
-                                <CardContent>
-                                    <div className="text-center py-8">
-                                        <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Trend Analysis</h3>
-                                        <p className="text-gray-600">
+                                <CardContent className="pt-0">
+                                    <div className="text-center py-6 sm:py-8">
+                                        <TrendingUp className="h-10 w-10 sm:h-12 sm:w-12 text-gray-400 mx-auto mb-3 sm:mb-4" />
+                                        <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-2">Trend Analysis</h3>
+                                        <p className="text-xs sm:text-sm text-gray-600 px-2">
                                             Health trend analysis will be available as you build your diagnostic history.
                                         </p>
                                     </div>
@@ -472,21 +507,21 @@ export default function HealthHistoryPage() {
                             </Card>
 
                             <Card>
-                                <CardHeader>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <Heart className="h-5 w-5 text-red-500" />
+                                <CardHeader className="pb-3 sm:pb-6">
+                                    <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                                        <Heart className="h-4 w-4 sm:h-5 sm:w-5 text-red-500" />
                                         Health Score
                                     </CardTitle>
                                 </CardHeader>
-                                <CardContent>
-                                    <div className="text-center py-8">
-                                        <div className="text-4xl font-bold text-green-600 mb-2">
+                                <CardContent className="pt-0">
+                                    <div className="text-center py-6 sm:py-8">
+                                        <div className="text-3xl sm:text-4xl font-bold text-green-600 mb-2">
                                             {healthStats?.totalSessions ? Math.min(100, Math.max(60, 100 - (healthStats.totalSessions * 2))) : 85}
                                         </div>
-                                        <p className="text-gray-600 mb-4">Overall Health Score</p>
-                                        <div className="w-full bg-gray-200 rounded-full h-2">
+                                        <p className="text-xs sm:text-sm text-gray-600 mb-3 sm:mb-4">Overall Health Score</p>
+                                        <div className="w-full bg-gray-200 rounded-full h-2 max-w-xs mx-auto relative overflow-hidden">
                                             <div
-                                                className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                                                className="bg-green-600 h-2 rounded-full transition-all duration-300 absolute top-0 left-0"
                                                 style={{
                                                     width: `${Math.min(100, Math.max(60, 100 - ((healthStats?.totalSessions || 0) * 2)))}%`
                                                 }}
