@@ -242,7 +242,15 @@ Guidelines:
           throw new Error("No response from OpenAI");
         }
 
-        return JSON.parse(response);
+        // Return the correct structure with usage data
+        return {
+          content: response,
+          usage: {
+            prompt_tokens: completion.usage?.prompt_tokens || 0,
+            completion_tokens: completion.usage?.completion_tokens || 0,
+            total_tokens: completion.usage?.total_tokens || 0,
+          },
+        };
       } catch (error) {
         lastError = error as Error;
         console.warn(`AI request attempt ${attempt} failed:`, error);
@@ -269,24 +277,25 @@ Guidelines:
         completion_tokens: number;
         total_tokens: number;
       };
-      predictions?: Array<{
-        diseaseName: string;
-        confidence: number;
-        confidenceIntervalLow: number;
-        confidenceIntervalHigh: number;
-        reasoning: string[];
-        riskFactors: string[];
-        recommendations: string[];
-        aiExplanation: string;
-      }>;
-      aiExplanation?: string;
     },
     input: AIPredictionInput
   ): Promise<AIPrediction[]> {
     console.log("AI Response structure:", JSON.stringify(aiResponse, null, 2));
 
-    if (!aiResponse.predictions || !Array.isArray(aiResponse.predictions)) {
-      console.error("Invalid response structure from AI:", aiResponse);
+    // Parse the JSON content from the AI response
+    let parsedResponse;
+    try {
+      parsedResponse = JSON.parse(aiResponse.content);
+    } catch (parseError) {
+      console.error("Failed to parse AI response JSON:", parseError);
+      throw new Error("Invalid JSON response from AI");
+    }
+
+    if (
+      !parsedResponse.predictions ||
+      !Array.isArray(parsedResponse.predictions)
+    ) {
+      console.error("Invalid response structure from AI:", parsedResponse);
       throw new Error("Invalid response structure from AI");
     }
 
@@ -298,7 +307,7 @@ Guidelines:
 
     const predictions: AIPrediction[] = [];
 
-    for (const prediction of aiResponse.predictions.slice(0, 3)) {
+    for (const prediction of parsedResponse.predictions.slice(0, 3)) {
       // Limit to 3 predictions
       let diseaseId = diseaseMap.get(prediction.diseaseName.toLowerCase());
 
@@ -348,7 +357,7 @@ Guidelines:
           : [prediction.recommendations || "Consult healthcare provider"],
         aiExplanation:
           prediction.aiExplanation ||
-          aiResponse.aiExplanation ||
+          parsedResponse.aiExplanation ||
           this.generateFallbackExplanation(input, prediction.diseaseName),
       });
     }
