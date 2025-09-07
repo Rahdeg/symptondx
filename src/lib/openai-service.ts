@@ -247,7 +247,8 @@ async function generateFallbackPredictions(
           "Consult healthcare provider for proper diagnosis",
           "Monitor symptoms and seek medical attention if they worsen",
         ],
-        aiExplanation: "Fallback analysis due to AI service unavailability",
+        aiExplanation:
+          "Fallback analysis due to AI service unavailability (quota exceeded)",
       };
     });
   } catch (error) {

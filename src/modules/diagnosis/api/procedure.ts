@@ -206,12 +206,19 @@ export const diagnosisRouter = createTRPCRouter({
             );
 
             // Create notification about AI failure and ML fallback
+            const isQuotaError =
+              fallbackError instanceof Error &&
+              fallbackError.message.includes("exceeded your current quota");
+
             await db.insert(notifications).values({
               userId: patientData.userId,
               type: "ai_processing_failed",
-              title: "⚠️ AI Analysis Unavailable",
-              message:
-                "AI analysis is temporarily unavailable. Using ML analysis instead.",
+              title: isQuotaError
+                ? "💳 AI Service Temporarily Limited"
+                : "⚠️ AI Analysis Unavailable",
+              message: isQuotaError
+                ? "AI analysis is temporarily limited due to usage quota. Using ML analysis instead. Service will resume shortly."
+                : "AI analysis is temporarily unavailable. Using ML analysis instead.",
               data: {
                 sessionId: session.id,
                 reason:
@@ -219,6 +226,7 @@ export const diagnosisRouter = createTRPCRouter({
                     ? fallbackError.message
                     : "Unknown error",
                 fallbackMethod: "ml",
+                isQuotaError,
               },
               isRead: false,
             });

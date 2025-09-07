@@ -157,6 +157,16 @@ export class OptimizedAIService {
     } catch (error) {
       console.error("Optimized AI analysis failed:", error);
 
+      // Check if it's a quota error and log it specifically
+      if (
+        error instanceof Error &&
+        error.message.includes("exceeded your current quota")
+      ) {
+        console.error(
+          "🚨 OpenAI quota exceeded - check billing at https://platform.openai.com/account/billing"
+        );
+      }
+
       // Return fallback predictions
       return this.generateFallbackPredictions(input);
     }
@@ -254,6 +264,15 @@ Guidelines:
       } catch (error) {
         lastError = error as Error;
         console.warn(`AI request attempt ${attempt} failed:`, error);
+
+        // Don't retry on quota/billing errors (429 with insufficient_quota)
+        if (
+          error instanceof Error &&
+          error.message.includes("exceeded your current quota")
+        ) {
+          console.error("⛔ OpenAI quota exceeded - stopping retries");
+          throw error; // Don't retry quota errors
+        }
 
         if (attempt < maxRetries) {
           // Wait before retry with exponential backoff
@@ -455,7 +474,8 @@ Guidelines:
             "Consult healthcare provider for proper diagnosis",
             "Monitor symptoms and seek medical attention if they worsen",
           ],
-          aiExplanation: "Fallback analysis due to AI service unavailability",
+          aiExplanation:
+            "Fallback analysis due to AI service unavailability (quota exceeded)",
         };
       });
     } catch (error) {
