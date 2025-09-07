@@ -148,33 +148,29 @@ export const diagnosisRouter = createTRPCRouter({
                   priority: isEmergency ? "emergency" : "normal",
                 },
               });
-
-              // Return immediately - async processing is queued successfully
-              return {
-                sessionId: session.id,
-                status: "processing",
-                urgencyLevel: session.urgencyLevel,
-                message:
-                  "AI analysis has been started. You'll be notified when complete.",
-                processingTime: isEmergency ? "2-3 minutes" : "5-10 minutes",
-              };
             } catch (inngestError) {
-              console.error("Failed to send Inngest event:", inngestError);
-              // Fallback to synchronous processing if Inngest fails
-              throw new Error("Inngest event failed");
+              console.error(
+                "Failed to send Inngest event (but continuing):",
+                inngestError
+              );
+              // Don't fallback - the event might still be processed
             }
+
+            return {
+              sessionId: session.id,
+              status: "processing",
+              urgencyLevel: session.urgencyLevel,
+              message:
+                "AI analysis has been started. You'll be notified when complete.",
+              processingTime: isEmergency ? "2-3 minutes" : "5-10 minutes",
+            };
           } catch (error) {
             console.error("Failed to setup AI processing:", error);
-            // Fallback to synchronous processing only if async setup fails
-            // Add a delay in production to allow async processing to complete
-            if (process.env.NODE_ENV === "production") {
-              console.log("Waiting for async processing to complete...");
-              await new Promise((resolve) => setTimeout(resolve, 30000)); // Wait 30 seconds in production
-            }
+            // Fallback to synchronous processing
           }
         }
 
-        // Fallback to synchronous AI processing (only runs if useAsyncProcessing is false OR async setup failed)
+        // Fallback to synchronous AI processing
         try {
           predictions = await OptimizedAIService.analyzeSymptomsWithAI(
             {
