@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useAuth } from '@clerk/nextjs';
+import { useAuth, useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import {
   Stethoscope,
@@ -79,12 +79,29 @@ const testimonialsContent = [
   }
 ];
 
+type UserRole = "patient" | "doctor" | "admin";
+
 export default function Home() {
   const { isSignedIn } = useAuth();
+  const { user } = useUser();
   const router = useRouter();
 
   const navigateToSignUp = () => router.push('/sign-up');
-  const navigateToDashboard = () => router.push('/dashboard');
+
+  const navigateToDashboard = () => {
+    const userRole = user?.publicMetadata?.role as UserRole | undefined;
+
+    // Role-specific dashboard mapping
+    const dashboardRoutes: Record<UserRole, string> = {
+      patient: '/dashboard/patient',
+      doctor: '/dashboard/doctor',
+      admin: '/dashboard/admin'
+    };
+
+    // Route to role-specific dashboard or fallback to patient dashboard
+    const targetRoute = userRole ? dashboardRoutes[userRole] : '/dashboard/patient';
+    router.push(targetRoute);
+  };
 
   return (
     <div className="min-h-screen">
