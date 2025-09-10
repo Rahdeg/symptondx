@@ -1,13 +1,21 @@
 import { db } from "@/db";
-import { notifications } from "@/db/schema";
+import { notifications, users, admins } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 
 export type NotificationType =
   | "diagnosis_complete"
   | "doctor_review_needed"
+  | "doctor_review_complete"
   | "high_risk_alert"
   | "follow_up_reminder"
-  | "system_update";
+  | "system_update"
+  | "ai_processing_started"
+  | "rate_limit_exceeded"
+  | "usage_limit_exceeded"
+  | "ai_processing_failed"
+  | "new_member_joined"
+  | "doctor_verification_needed"
+  | "doctor_verification_complete";
 
 export interface CreateNotificationInput {
   userId: string;
@@ -341,6 +349,120 @@ class NotificationService {
       };
     }
   }
+
+  // Get all admin user IDs
+  async getAllAdminUserIds(): Promise<string[]> {
+    try {
+      // First try to get from admins table (for users who completed full admin onboarding)
+      const adminProfileUsers = await db
+        .select({ userId: admins.userId })
+        .from(admins)
+        .leftJoin(users, eq(admins.userId, users.id))
+        .where(and(eq(users.isActive, true), eq(admins.isActive, true)));
+
+      // Also get users with role "admin" (for basic admin users)
+      const adminRoleUsers = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(and(eq(users.role, "admin"), eq(users.isActive, true)));
+
+      // Combine both sets and remove duplicates
+      const adminUserIds = new Set([
+        ...adminProfileUsers.map((admin) => admin.userId),
+        ...adminRoleUsers.map((user) => user.id),
+      ]);
+
+      return Array.from(adminUserIds);
+    } catch (error) {
+      console.error("Error getting admin user IDs:", error);
+      return [];
+    }
+  }
+
+  // Create new member joined notification for admins
+  async createNewMemberJoinedNotification(
+    newMemberName: string,
+    newMemberEmail: string,
+    memberRole: "patient" | "doctor"
+  ) {
+    const adminUserIds = await this.getAllAdminUserIds();
+
+    if (adminUserIds.length === 0) {
+      console.warn("No active admin users found for new member notification");
+      return { success: false, message: "No active admins found" };
+    }
+
+    const title = "New Member Joined";
+    const message = `${newMemberName} (${newMemberEmail}) has joined as a ${memberRole}.`;
+
+    return this.createBulkNotifications(adminUserIds, {
+      type: "new_member_joined",
+      title,
+      message,
+      data: {
+        memberName: newMemberName,
+        memberEmail: newMemberEmail,
+        memberRole,
+      },
+    });
+  }
+
+  // Create doctor verification needed notification for admins
+  async createDoctorVerificationNeededNotification(
+    doctorName: string,
+    doctorEmail: string,
+    licenseNumber: string,
+    doctorId: string
+  ) {
+    const adminUserIds = await this.getAllAdminUserIds();
+
+    if (adminUserIds.length === 0) {
+      console.warn(
+        "No active admin users found for doctor verification notification"
+      );
+      return { success: false, message: "No active admins found" };
+    }
+
+    const title = "Doctor Verification Required";
+    const message = `Dr. ${doctorName} (${doctorEmail}) requires verification. License: ${licenseNumber}`;
+
+    return this.createBulkNotifications(adminUserIds, {
+      type: "doctor_verification_needed",
+      title,
+      message,
+      data: {
+        doctorName,
+        doctorEmail,
+        licenseNumber,
+        doctorId,
+      },
+    });
+  }
+
+  // Create doctor verification complete notification
+  async createDoctorVerificationCompleteNotification(
+    doctorUserId: string,
+    isVerified: boolean,
+    adminNotes?: string
+  ) {
+    const title = isVerified
+      ? "Verification Approved"
+      : "Verification Declined";
+    const message = isVerified
+      ? "Congratulations! Your medical license has been verified. You can now access all doctor features."
+      : "Your verification request has been declined. Please contact support for more information.";
+
+    return this.createNotification({
+      userId: doctorUserId,
+      type: "doctor_verification_complete",
+      title,
+      message,
+      data: {
+        isVerified,
+        adminNotes,
+      },
+    });
+  }
 }
 
 // Export singleton instance
@@ -360,4 +482,8 @@ export const {
   createSystemUpdateNotification,
   createBulkNotifications,
   getNotificationStats,
+  getAllAdminUserIds,
+  createNewMemberJoinedNotification,
+  createDoctorVerificationNeededNotification,
+  createDoctorVerificationCompleteNotification,
 } = notificationService;

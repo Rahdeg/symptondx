@@ -61,6 +61,9 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "rate_limit_exceeded",
   "usage_limit_exceeded",
   "ai_processing_failed",
+  "new_member_joined",
+  "doctor_verification_needed",
+  "doctor_verification_complete",
 ]);
 
 // Core Tables
@@ -106,6 +109,23 @@ export const doctors = pgTable("doctors", {
   qualifications: text("qualifications"),
   hospitalAffiliations: text("hospital_affiliations"),
   isVerified: boolean("is_verified").default(false),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const admins = pgTable("admins", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .references(() => users.id)
+    .notNull(),
+  organizationName: varchar("organization_name", { length: 256 }).notNull(),
+  jobTitle: varchar("job_title", { length: 256 }).notNull(),
+  phoneNumber: varchar("phone_number", { length: 20 }).notNull(),
+  department: varchar("department", { length: 256 }),
+  managementLevel: varchar("management_level", { length: 50 }).notNull(), // senior, mid, junior, executive
+  systemPermissions: json("system_permissions").$type<string[]>(),
+  preferredNotifications: json("preferred_notifications").$type<string[]>(),
+  isActive: boolean("is_active").default(true),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -259,6 +279,10 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     fields: [users.id],
     references: [doctors.userId],
   }),
+  admin: one(admins, {
+    fields: [users.id],
+    references: [admins.userId],
+  }),
   notifications: many(notifications),
 }));
 
@@ -278,6 +302,13 @@ export const doctorsRelations = relations(doctors, ({ one, many }) => ({
   }),
   diagnosisSessions: many(diagnosisSessions),
   doctorReviews: many(doctorReviews),
+}));
+
+export const adminsRelations = relations(admins, ({ one }) => ({
+  user: one(users, {
+    fields: [admins.userId],
+    references: [users.id],
+  }),
 }));
 
 export const symptomCategoriesRelations = relations(

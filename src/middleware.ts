@@ -72,7 +72,7 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
       const roleDashboardMap: Record<string, string> = {
         patient: "/dashboard/patient",
         doctor: "/dashboard/doctor",
-        admin: "/dashboard/admin",
+        admin: "/admin", // Updated to use the new admin route structure
       };
 
       const redirectUrl = roleDashboardMap[userRole] || "/";
@@ -161,7 +161,7 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
         // Redirect to the correct dashboard based on user's actual role
         const roleDashboardMap: Record<string, string> = {
           doctor: "/dashboard/doctor",
-          admin: "/dashboard/admin",
+          admin: "/admin", // Updated to use the new admin route structure
           patient: "/dashboard/patient",
         };
 
@@ -170,6 +170,20 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
         const correctUrl = new URL(correctDashboard, req.url);
         return NextResponse.redirect(correctUrl);
       }
+    }
+
+    // Handle direct access to /dashboard - redirect to appropriate role dashboard
+    if (pathname === "/dashboard") {
+      const roleDashboardMap: Record<string, string> = {
+        doctor: "/dashboard/doctor",
+        admin: "/admin", // Updated to use the new admin route structure
+        patient: "/dashboard/patient",
+      };
+
+      const correctDashboard =
+        roleDashboardMap[userRole] || "/dashboard/patient";
+      const correctUrl = new URL(correctDashboard, req.url);
+      return NextResponse.redirect(correctUrl);
     }
   }
 

@@ -114,7 +114,7 @@ const getRoleNavigation = (role: UserRole): NavigationItem[] => {
         admin: [
             {
                 label: 'Dashboard',
-                href: '/dashboard/admin',
+                href: '/admin',
                 icon: <Home className="h-4 w-4" />,
             },
             {

@@ -5,6 +5,7 @@ import { doctorsRouter } from "../../modules/doctors/api/procedure";
 import { onboardingRouter } from "../../modules/onboarding/api/procedure";
 import { diagnosisRouter } from "../../modules/diagnosis/api/procedure";
 import { mlRouter } from "../../modules/ml/api/procedure";
+import { adminRouter } from "../../modules/admin/api/procedure";
 import { notificationsRouter } from "./notifications";
 import { aiRouter } from "./ai";
 import { symptomsRouter } from "./symptoms";
@@ -18,6 +19,7 @@ export const appRouter = createTRPCRouter({
   onboarding: onboardingRouter,
   diagnosis: diagnosisRouter,
   ml: mlRouter,
+  admin: adminRouter,
 
   // Utility routers
   notifications: notificationsRouter,

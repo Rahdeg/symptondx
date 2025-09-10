@@ -453,7 +453,12 @@ export function PatientOnboarding() {
 
     const { register, handleSubmit, formState: { errors }, watch, setValue } = form;
 
-    const handleNext = () => {
+    const handleNext = (e?: React.MouseEvent) => {
+        // Explicitly prevent any form submission
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
         const currentValues = watch();
         const missingFields: string[] = [];
 
@@ -475,7 +480,12 @@ export function PatientOnboarding() {
         setCurrentStep(prev => Math.min(prev + 1, steps.length - 1));
     };
 
-    const handlePrevious = () => {
+    const handlePrevious = (e?: React.MouseEvent) => {
+        // Explicitly prevent any form submission
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
         setCurrentStep(prev => Math.max(prev - 1, 0));
     };
 

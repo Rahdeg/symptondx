@@ -1,21 +1,15 @@
 import { z } from "zod";
 import { db } from "@/db";
-import {
-  doctors,
-  users,
-  diagnosisSessions,
-  doctorReviews,
-  notifications,
-  patients,
-} from "@/db/schema";
+import { doctors, users, diagnosisSessions, patients } from "@/db/schema";
 import {
   protectedProcedure,
   createTRPCRouter,
   doctorProcedure,
 } from "@/trpc/init";
 import { doctorOnboardingSchema, diagnosisReviewSchema } from "../schema";
-import { eq, desc, and, count, gte } from "drizzle-orm";
-import { clerkClient } from "@clerk/nextjs/server";
+import { doctorService } from "../services/doctor-service";
+import { userService } from "../../auth/services/user-service";
+import { eq, and } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
 export const doctorsRouter = createTRPCRouter({
@@ -23,75 +17,7 @@ export const doctorsRouter = createTRPCRouter({
   createDoctor: protectedProcedure
     .input(doctorOnboardingSchema)
     .mutation(async ({ input, ctx }) => {
-      // Get the current user's ID from the database
-      const currentUser = await db
-        .select({ id: users.id, onboardingComplete: users.onboardingComplete })
-        .from(users)
-        .where(eq(users.clerkId, ctx.clerkUserId!))
-        .limit(1);
-
-      if (!currentUser.length) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "User not found",
-        });
-      }
-
-      // Check if doctor already exists to prevent duplicates
-      const existingDoctor = await db
-        .select({ id: doctors.id })
-        .from(doctors)
-        .where(eq(doctors.userId, currentUser[0].id))
-        .limit(1);
-
-      if (existingDoctor.length > 0) {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: "Doctor profile already exists for this user",
-        });
-      }
-
-      // Check if user has already completed onboarding
-      if (currentUser[0].onboardingComplete) {
-        throw new TRPCError({
-          code: "CONFLICT",
-          message: "User has already completed onboarding",
-        });
-      }
-
-      const doctor = await db
-        .insert(doctors)
-        .values({
-          userId: currentUser[0].id,
-          licenseNumber: input.licenseNumber,
-          specialization: input.specialization,
-          yearsOfExperience: input.yearsOfExperience,
-          phoneNumber: input.phoneNumber,
-          qualifications: input.qualifications,
-          hospitalAffiliations: input.hospitalAffiliations,
-          isVerified: false, // Requires manual verification
-        })
-        .returning();
-
-      // Update the user's onboarding status
-      await db
-        .update(users)
-        .set({
-          onboardingComplete: true,
-          role: "doctor",
-        })
-        .where(eq(users.clerkId, ctx.clerkUserId!));
-
-      // Update Clerk metadata
-      const clerk = await clerkClient();
-      await clerk.users.updateUser(ctx.clerkUserId!, {
-        publicMetadata: {
-          onboardingComplete: true,
-          role: "doctor",
-        },
-      });
-
-      return doctor[0];
+      return userService.createDoctor(ctx.clerkUserId!, input);
     }),
 
   // Get all available doctors for patient selection
@@ -103,45 +29,14 @@ export const doctorsRouter = createTRPCRouter({
       })
     )
     .query(async ({ input }) => {
-      const conditions = [eq(doctors.isVerified, true)];
-
-      if (input.specialization) {
-        conditions.push(eq(doctors.specialization, input.specialization));
-      }
-
-      const whereCondition =
-        conditions.length > 1 ? and(...conditions) : conditions[0];
-
-      const availableDoctors = await db
-        .select({
-          id: doctors.id,
-          licenseNumber: doctors.licenseNumber,
-          specialization: doctors.specialization,
-          yearsOfExperience: doctors.yearsOfExperience,
-          qualifications: doctors.qualifications,
-          hospitalAffiliations: doctors.hospitalAffiliations,
-          name: users.name,
-          email: users.email,
-        })
-        .from(doctors)
-        .innerJoin(users, eq(doctors.userId, users.id))
-        .where(whereCondition)
-        .limit(input.limit);
-
-      return availableDoctors;
+      const result = await doctorService.getAvailableDoctors(input);
+      return result.data;
     }),
 
   // Get doctor specializations
   getSpecializations: protectedProcedure.query(async () => {
-    const specializations = await db
-      .selectDistinct({ specialization: doctors.specialization })
-      .from(doctors)
-      .where(eq(doctors.isVerified, true));
-
-    return specializations
-      .map((s) => s.specialization)
-      .filter(Boolean)
-      .sort();
+    const result = await doctorService.getSpecializations();
+    return result.data;
   }),
 
   // Assign doctor to a diagnosis session
@@ -153,140 +48,28 @@ export const doctorsRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ input }) => {
-      // Verify the doctor exists and is verified
-      const [doctorData] = await db
-        .select({ id: doctors.id, isVerified: doctors.isVerified })
-        .from(doctors)
-        .where(eq(doctors.id, input.doctorId))
-        .limit(1);
-
-      if (!doctorData || !doctorData.isVerified) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Doctor not found or not verified",
-        });
-      }
-
-      // Update the diagnosis session with the selected doctor
-      const [updatedSession] = await db
-        .update(diagnosisSessions)
-        .set({
-          doctorId: input.doctorId,
-          status: "pending", // Change status to pending for doctor review
-          requiresDoctorReview: true,
-        })
-        .where(eq(diagnosisSessions.id, input.sessionId))
-        .returning();
-
-      // Get doctor's user ID for notification
-      const [doctorUser] = await db
-        .select({ userId: users.id })
-        .from(doctors)
-        .innerJoin(users, eq(doctors.userId, users.id))
-        .where(eq(doctors.id, input.doctorId))
-        .limit(1);
-
-      // Create notification for the doctor
-      if (doctorUser) {
-        await db.insert(notifications).values({
-          userId: doctorUser.userId,
-          type: "doctor_review_needed",
-          title: "New Case Assignment",
-          message: "You have been assigned a new diagnosis case for review",
-          data: {
-            sessionId: input.sessionId,
-            patientId: updatedSession.patientId,
-          },
-        });
-      }
-
-      return updatedSession;
+      return doctorService.assignDoctorToSession(
+        input.sessionId,
+        input.doctorId
+      );
     }),
 
   // Get doctor dashboard stats
   getDashboardStats: doctorProcedure.query(async ({ ctx }) => {
-    const [doctorData] = await db
-      .select({ doctorId: doctors.id })
-      .from(users)
-      .innerJoin(doctors, eq(users.id, doctors.userId))
-      .where(eq(users.clerkId, ctx.clerkUserId!))
-      .limit(1);
-
-    if (!doctorData) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "Doctor not found",
-      });
-    }
-
-    const doctorId = doctorData.doctorId;
-
-    // Get total assigned sessions
-    const [sessionCount] = await db
-      .select({ count: count() })
-      .from(diagnosisSessions)
-      .where(eq(diagnosisSessions.doctorId, doctorId));
-
-    // Get pending reviews - sessions assigned to this doctor that need review
-    const [pendingCount] = await db
-      .select({ count: count() })
-      .from(diagnosisSessions)
-      .where(
-        and(
-          eq(diagnosisSessions.doctorId, doctorId),
-          eq(diagnosisSessions.status, "pending"),
-          eq(diagnosisSessions.requiresDoctorReview, true)
-        )
-      );
-
-    // Get completed reviews
-    const [completedCount] = await db
-      .select({ count: count() })
-      .from(doctorReviews)
-      .where(eq(doctorReviews.doctorId, doctorId));
-
-    return {
-      totalSessions: sessionCount.count,
-      pendingReviews: pendingCount.count,
-      completedReviews: completedCount.count,
-    };
+    return doctorService.getDashboardStats(ctx.clerkUserId!);
   }),
 
   // Get doctor profile info
   getDoctorProfile: doctorProcedure.query(async ({ ctx }) => {
-    const [doctorData] = await db
-      .select({
-        id: doctors.id,
-        name: users.name,
-        email: users.email,
-        licenseNumber: doctors.licenseNumber,
-        specialization: doctors.specialization,
-        yearsOfExperience: doctors.yearsOfExperience,
-        phoneNumber: doctors.phoneNumber,
-        qualifications: doctors.qualifications,
-        hospitalAffiliations: doctors.hospitalAffiliations,
-        isVerified: doctors.isVerified,
-        createdAt: doctors.createdAt,
-      })
-      .from(users)
-      .innerJoin(doctors, eq(users.id, doctors.userId))
-      .where(eq(users.clerkId, ctx.clerkUserId!))
-      .limit(1);
-
-    if (!doctorData) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "Doctor not found",
-      });
-    }
-
+    const profile = await doctorService.getDoctorProfile(ctx.clerkUserId!);
     return {
-      ...doctorData,
-      qualifications: doctorData.qualifications
-        ? doctorData.qualifications.split(",").map((q) => q.trim())
+      ...profile,
+      ...profile.doctor,
+      qualifications: profile.doctor.qualifications
+        ? profile.doctor.qualifications.split(",").map((q) => q.trim())
         : [],
-      hospitalAffiliations: doctorData.hospitalAffiliations
-        ? doctorData.hospitalAffiliations.split(",").map((h) => h.trim())
+      hospitalAffiliations: profile.doctor.hospitalAffiliations
+        ? profile.doctor.hospitalAffiliations.split(",").map((h) => h.trim())
         : [],
     };
   }),
@@ -309,178 +92,14 @@ export const doctorsRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
-      const [doctorData] = await db
-        .select({ doctorId: doctors.id })
-        .from(users)
-        .innerJoin(doctors, eq(users.id, doctors.userId))
-        .where(eq(users.clerkId, ctx.clerkUserId!))
-        .limit(1);
-
-      if (!doctorData) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Doctor not found",
-        });
-      }
-
-      const offset = (input.page - 1) * input.limit;
-      const conditions = [eq(diagnosisSessions.doctorId, doctorData.doctorId)];
-
-      if (input.status) {
-        conditions.push(eq(diagnosisSessions.status, input.status));
-      }
-
-      const whereCondition =
-        conditions.length > 1 ? and(...conditions) : conditions[0];
-
-      const sessionsList = await db
-        .select({
-          id: diagnosisSessions.id,
-          chiefComplaint: diagnosisSessions.chiefComplaint,
-          additionalInfo: diagnosisSessions.additionalInfo,
-          status: diagnosisSessions.status,
-          finalDiagnosis: diagnosisSessions.finalDiagnosis,
-          confidence_score: diagnosisSessions.confidence_score,
-          urgencyLevel: diagnosisSessions.urgencyLevel,
-          isEmergency: diagnosisSessions.isEmergency,
-          requiresDoctorReview: diagnosisSessions.requiresDoctorReview,
-          createdAt: diagnosisSessions.createdAt,
-        })
-        .from(diagnosisSessions)
-        .where(whereCondition)
-        .orderBy(desc(diagnosisSessions.createdAt))
-        .limit(input.limit)
-        .offset(offset);
-
-      const [totalCount] = await db
-        .select({ count: count() })
-        .from(diagnosisSessions)
-        .where(whereCondition);
-
-      return {
-        sessions: sessionsList,
-        totalCount: totalCount.count,
-        totalPages: Math.ceil(totalCount.count / input.limit),
-        currentPage: input.page,
-      };
+      return doctorService.getAssignedSessions(ctx.clerkUserId!, input);
     }),
 
   // Submit diagnosis review
   submitDiagnosisReview: doctorProcedure
     .input(diagnosisReviewSchema)
     .mutation(async ({ ctx, input }) => {
-      const [doctorData] = await db
-        .select({ doctorId: doctors.id })
-        .from(users)
-        .innerJoin(doctors, eq(users.id, doctors.userId))
-        .where(eq(users.clerkId, ctx.clerkUserId!))
-        .limit(1);
-
-      if (!doctorData) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Doctor not found",
-        });
-      }
-
-      // Get the diagnosis session to find the patient
-      const [sessionData] = await db
-        .select({
-          patientId: diagnosisSessions.patientId,
-          chiefComplaint: diagnosisSessions.chiefComplaint,
-        })
-        .from(diagnosisSessions)
-        .where(eq(diagnosisSessions.id, input.diagnosisSessionId))
-        .limit(1);
-
-      if (!sessionData) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Diagnosis session not found",
-        });
-      }
-
-      // Get patient's user ID for notification
-      const [patientUser] = await db
-        .select({ userId: users.id })
-        .from(patients)
-        .innerJoin(users, eq(patients.userId, users.id))
-        .where(eq(patients.id, sessionData.patientId))
-        .limit(1);
-
-      // Create doctor review
-      const review = await db
-        .insert(doctorReviews)
-        .values({
-          sessionId: input.diagnosisSessionId,
-          doctorId: doctorData.doctorId,
-          finalDiagnosis: input.doctorDiagnosis,
-          confidence: Math.floor(input.confidence * 10), // Convert to 1-10 scale
-          notes: input.notes,
-          agreesWithML: true, // We'll determine this based on confidence
-          recommendedActions: input.recommendedTreatment
-            ? [input.recommendedTreatment]
-            : [],
-        })
-        .returning();
-
-      // Update the diagnosis session
-      await db
-        .update(diagnosisSessions)
-        .set({
-          status: "reviewed",
-          finalDiagnosis: input.doctorDiagnosis,
-          doctorNotes: input.notes,
-          confidence_score: input.confidence.toString(),
-          completedAt: new Date(),
-        })
-        .where(eq(diagnosisSessions.id, input.diagnosisSessionId));
-
-      // Update patient's medical history with the new diagnosis
-      const [patientData] = await db
-        .select({
-          medicalHistory: patients.medicalHistory,
-        })
-        .from(patients)
-        .where(eq(patients.id, sessionData.patientId))
-        .limit(1);
-
-      if (patientData) {
-        const currentHistory = patientData.medicalHistory || [];
-        const newDiagnosis = `${
-          input.doctorDiagnosis
-        } (${new Date().toLocaleDateString()})`;
-
-        // Add the new diagnosis to medical history if it's not already there
-        if (!currentHistory.includes(newDiagnosis)) {
-          await db
-            .update(patients)
-            .set({
-              medicalHistory: [...currentHistory, newDiagnosis],
-              updatedAt: new Date(),
-            })
-            .where(eq(patients.id, sessionData.patientId));
-        }
-      }
-
-      // Create notification for the patient
-      if (patientUser) {
-        await db.insert(notifications).values({
-          userId: patientUser.userId,
-          type: "doctor_review_complete",
-          title: "✅ Doctor Review Complete",
-          message: `Your diagnosis for "${sessionData.chiefComplaint}" has been reviewed by a doctor. Final diagnosis: ${input.doctorDiagnosis}`,
-          data: {
-            sessionId: input.diagnosisSessionId,
-            diagnosis: input.doctorDiagnosis,
-            doctorId: doctorData.doctorId,
-            confidence: input.confidence,
-          },
-          isRead: false,
-        });
-      }
-
-      return review[0];
+      return doctorService.submitDiagnosisReview(ctx.clerkUserId!, input);
     }),
 
   // Update doctor profile
@@ -494,97 +113,13 @@ export const doctorsRouter = createTRPCRouter({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const [doctorData] = await db
-        .select({ doctorId: doctors.id })
-        .from(users)
-        .innerJoin(doctors, eq(users.id, doctors.userId))
-        .where(eq(users.clerkId, ctx.clerkUserId!))
-        .limit(1);
-
-      if (!doctorData) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Doctor not found",
-        });
-      }
-
-      // Update user name if provided
-      if (input.name) {
-        await db
-          .update(users)
-          .set({ name: input.name })
-          .where(eq(users.clerkId, ctx.clerkUserId!));
-      }
-
-      // Update doctor fields
-      const doctorUpdate: Record<string, unknown> = {};
-      if (input.specialization)
-        doctorUpdate.specialization = input.specialization;
-      if (input.phoneNumber) doctorUpdate.phoneNumber = input.phoneNumber;
-      if (input.yearsOfExperience !== undefined)
-        doctorUpdate.yearsOfExperience = input.yearsOfExperience;
-
-      if (Object.keys(doctorUpdate).length > 0) {
-        doctorUpdate.updatedAt = new Date();
-
-        const [updatedDoctor] = await db
-          .update(doctors)
-          .set(doctorUpdate)
-          .where(eq(doctors.id, doctorData.doctorId))
-          .returning();
-
-        return updatedDoctor;
-      }
-
-      return null;
+      return doctorService.updateProfile(ctx.clerkUserId!, input);
     }),
 
   // Get urgent cases for doctor dashboard
   getUrgentCases: doctorProcedure.query(async ({ ctx }) => {
-    const [doctorData] = await db
-      .select({ doctorId: doctors.id })
-      .from(users)
-      .innerJoin(doctors, eq(users.id, doctors.userId))
-      .where(eq(users.clerkId, ctx.clerkUserId!))
-      .limit(1);
-
-    if (!doctorData) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "Doctor not found",
-      });
-    }
-
-    const urgentCases = await db
-      .select({
-        id: diagnosisSessions.id,
-        chiefComplaint: diagnosisSessions.chiefComplaint,
-        additionalInfo: diagnosisSessions.additionalInfo,
-        status: diagnosisSessions.status,
-        urgencyLevel: diagnosisSessions.urgencyLevel,
-        isEmergency: diagnosisSessions.isEmergency,
-        createdAt: diagnosisSessions.createdAt,
-        patientName: users.name,
-        patientAge: patients.dateOfBirth,
-        patientGender: patients.gender,
-      })
-      .from(diagnosisSessions)
-      .leftJoin(patients, eq(diagnosisSessions.patientId, patients.id))
-      .leftJoin(users, eq(patients.userId, users.id))
-      .where(
-        and(
-          eq(diagnosisSessions.doctorId, doctorData.doctorId),
-          eq(diagnosisSessions.status, "pending")
-        )
-      )
-      .orderBy(
-        desc(diagnosisSessions.isEmergency),
-        desc(diagnosisSessions.urgencyLevel),
-        desc(diagnosisSessions.createdAt)
-      )
-      .limit(10);
-
-    return urgentCases;
+    const result = await doctorService.getUrgentCases(ctx.clerkUserId!);
+    return result.data;
   }),
 
   // Get case preview for doctor dashboard
@@ -716,91 +251,6 @@ export const doctorsRouter = createTRPCRouter({
       })
     )
     .query(async ({ ctx, input }) => {
-      const [doctorData] = await db
-        .select({ doctorId: doctors.id })
-        .from(users)
-        .innerJoin(doctors, eq(users.id, doctors.userId))
-        .where(eq(users.clerkId, ctx.clerkUserId!))
-        .limit(1);
-
-      if (!doctorData) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Doctor not found",
-        });
-      }
-
-      // Calculate date range based on period
-      const now = new Date();
-      let startDate: Date;
-
-      switch (input.period) {
-        case "today":
-          startDate = new Date(
-            now.getFullYear(),
-            now.getMonth(),
-            now.getDate()
-          );
-          break;
-        case "week":
-          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          break;
-        case "month":
-          startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-          break;
-        default:
-          startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      }
-
-      // Get total cases assigned to this doctor in the period
-      const [totalCasesResult] = await db
-        .select({ count: count() })
-        .from(diagnosisSessions)
-        .where(
-          and(
-            eq(diagnosisSessions.doctorId, doctorData.doctorId),
-            gte(diagnosisSessions.createdAt, startDate)
-          )
-        );
-
-      // Get completed reviews (cases where doctor has submitted a review)
-      const [completedReviewsResult] = await db
-        .select({ count: count() })
-        .from(doctorReviews)
-        .innerJoin(
-          diagnosisSessions,
-          eq(doctorReviews.sessionId, diagnosisSessions.id)
-        )
-        .where(
-          and(
-            eq(doctorReviews.doctorId, doctorData.doctorId),
-            gte(diagnosisSessions.createdAt, startDate)
-          )
-        );
-
-      // Get pending reviews (cases that need doctor review and are still pending)
-      const [pendingReviewsResult] = await db
-        .select({ count: count() })
-        .from(diagnosisSessions)
-        .where(
-          and(
-            eq(diagnosisSessions.doctorId, doctorData.doctorId),
-            eq(diagnosisSessions.status, "pending"),
-            eq(diagnosisSessions.requiresDoctorReview, true),
-            gte(diagnosisSessions.createdAt, startDate)
-          )
-        );
-
-      const totalCases = totalCasesResult?.count || 0;
-      const completedReviews = completedReviewsResult?.count || 0;
-      const pendingReviews = pendingReviewsResult?.count || 0;
-
-      return {
-        totalCases,
-        completedReviews,
-        pendingReviews,
-        completionRate:
-          totalCases > 0 ? (completedReviews / totalCases) * 100 : 0,
-      };
+      return doctorService.getReviewMetrics(ctx.clerkUserId!, input.period);
     }),
 });

@@ -1,10 +1,12 @@
 'use client';
 
+import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DashboardLayout } from "@/components/ui/dashboard-layout";
+import { AdminStatsCards } from "@/modules/admin/ui/components/admin-stats-cards";
 import {
     Settings,
     Users,
@@ -12,7 +14,6 @@ import {
     Brain,
     Shield,
     AlertTriangle,
-    TrendingUp,
     Activity,
     Server,
     Database,
@@ -38,70 +39,18 @@ export default function AdminDashboard() {
         router.push('/admin/monitor');
     };
 
+    const handleManageDoctors = () => {
+        router.push('/admin/doctors');
+    };
+
     return (
         <DashboardLayout
             title="Admin Dashboard"
             description="System monitoring, AI performance, and platform management"
         >
             <div className="space-y-6">
-                {/* Quick Stats */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <Card>
-                        <CardContent className="p-6">
-                            <div className="flex items-center space-x-4">
-                                <div className="p-2 bg-blue-100 rounded-lg">
-                                    <Users className="h-6 w-6 text-blue-600" />
-                                </div>
-                                <div>
-                                    <p className="text-sm font-medium text-gray-600">Total Users</p>
-                                    <p className="text-2xl font-bold text-gray-900">1,247</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardContent className="p-6">
-                            <div className="flex items-center space-x-4">
-                                <div className="p-2 bg-green-100 rounded-lg">
-                                    <Brain className="h-6 w-6 text-green-600" />
-                                </div>
-                                <div>
-                                    <p className="text-sm font-medium text-gray-600">AI Predictions</p>
-                                    <p className="text-2xl font-bold text-gray-900">8,432</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardContent className="p-6">
-                            <div className="flex items-center space-x-4">
-                                <div className="p-2 bg-purple-100 rounded-lg">
-                                    <TrendingUp className="h-6 w-6 text-purple-600" />
-                                </div>
-                                <div>
-                                    <p className="text-sm font-medium text-gray-600">System Uptime</p>
-                                    <p className="text-2xl font-bold text-gray-900">99.9%</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-
-                    <Card>
-                        <CardContent className="p-6">
-                            <div className="flex items-center space-x-4">
-                                <div className="p-2 bg-orange-100 rounded-lg">
-                                    <AlertTriangle className="h-6 w-6 text-orange-600" />
-                                </div>
-                                <div>
-                                    <p className="text-sm font-medium text-gray-600">Alerts</p>
-                                    <p className="text-2xl font-bold text-gray-900">3</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </div>
+                {/* Real-time System Stats */}
+                <AdminStatsCards />
 
                 {/* Main Actions */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -173,6 +122,23 @@ export default function AdminDashboard() {
                         </CardContent>
                     </Card>
 
+                    <Card className="hover:shadow-lg transition-shadow cursor-pointer" onClick={handleManageDoctors}>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Shield className="h-5 w-5 text-orange-500" />
+                                Doctor Verification
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-gray-600 mb-4">
+                                Verify doctor credentials and manage medical professional access
+                            </p>
+                            <Button variant="outline" className="w-full" onClick={handleManageDoctors}>
+                                Manage Doctors
+                            </Button>
+                        </CardContent>
+                    </Card>
+
                     <Card className="hover:shadow-lg transition-shadow">
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
@@ -183,23 +149,6 @@ export default function AdminDashboard() {
                         <CardContent>
                             <p className="text-gray-600 mb-4">
                                 Configure platform settings and AI parameters
-                            </p>
-                            <Button variant="outline" className="w-full" disabled>
-                                Coming Soon
-                            </Button>
-                        </CardContent>
-                    </Card>
-
-                    <Card className="hover:shadow-lg transition-shadow">
-                        <CardHeader>
-                            <CardTitle className="flex items-center gap-2">
-                                <Shield className="h-5 w-5 text-orange-500" />
-                                Security
-                            </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <p className="text-gray-600 mb-4">
-                                Security monitoring and access control management
                             </p>
                             <Button variant="outline" className="w-full" disabled>
                                 Coming Soon

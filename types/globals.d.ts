@@ -1,4 +1,4 @@
-export type Roles = "doctor" | "patient";
+export type Roles = "doctor" | "patient" | "admin";
 
 export interface UserPublicMetadata {
   role?: Roles;

@@ -2,13 +2,13 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { User, HeartPulse, ArrowRight, CheckCircle, Sparkles } from "lucide-react";
+import { User, HeartPulse, Shield, ArrowRight, CheckCircle, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ProgressCardComponent } from "@/components/ui/enhanced-cards";
 import { useRouter } from "next/navigation";
 
-type UserRole = "patient" | "doctor";
+type UserRole = "patient" | "doctor" | "admin";
 
 interface RoleData {
     label: string;
@@ -48,6 +48,20 @@ const rolesData: RoleData[] = [
         icon: <HeartPulse className="h-8 w-8 text-green-600" />,
         gradient: "from-green-500 to-emerald-500",
         route: "/onboarding/doctor"
+    },
+    {
+        label: "Administrator",
+        value: "admin",
+        description: "Manage platform operations, oversee system performance, and maintain organizational controls",
+        features: [
+            "Full system administration",
+            "User management & oversight",
+            "Analytics & reporting",
+            "Platform configuration"
+        ],
+        icon: <Shield className="h-8 w-8 text-purple-600" />,
+        gradient: "from-purple-500 to-violet-500",
+        route: "/onboarding/admin"
     }
 ];
 
@@ -179,7 +193,7 @@ export function RoleSelection() {
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.3 }}
-                        className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12 max-w-4xl mx-auto"
+                        className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12 max-w-6xl mx-auto"
                     >
                         {rolesData.map(renderRoleCard)}
                     </motion.div>

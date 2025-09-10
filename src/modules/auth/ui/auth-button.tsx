@@ -60,6 +60,16 @@ const getRoleNavigation = (role: UserRole): NavigationItem[] => {
         ],
         admin: [
             {
+                label: 'User Management',
+                href: '/admin/users',
+                icon: <UserCircleIcon className="size-4" />
+            },
+            {
+                label: 'Doctor Verification',
+                href: '/admin/doctors',
+                icon: <ActivityIcon className="size-4" />
+            },
+            {
                 label: 'System Monitor',
                 href: '/admin/monitor',
                 icon: <ActivityIcon className="size-4" />
@@ -75,7 +85,7 @@ const getRoleNavigation = (role: UserRole): NavigationItem[] => {
     const dashboardHrefs: Record<UserRole, string> = {
         patient: '/dashboard/patient',
         doctor: '/dashboard/doctor',
-        admin: '/dashboard/admin'
+        admin: '/admin'
     };
 
     return [
